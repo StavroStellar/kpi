@@ -14,7 +14,7 @@ class Config:
 
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
 
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024 
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 
     LOGIN_VIEW = 'auth.login'
     LOGIN_MESSAGE = 'Пожалуйста, войдите, чтобы получить доступ к этой странице.'
@@ -26,27 +26,7 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.join(Config.BASE_DIR, "database_dev.db")}'
 
 
-class ProductionConfig(Config):
-    DEBUG = False
-    TESTING = False
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{Config.DATABASE_PATH}'
-
-    @classmethod
-    def init_app(cls, app):
-        pass
-
-
-class TestingConfig(Config):
-    TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
-    WTF_CSRF_ENABLED = False
-    SECRET_KEY = 'test-secret-key'
-
-
-# Словарь выбора конфигурации
 config = {
     'development': DevelopmentConfig,
-    'production': ProductionConfig,
-    'testing': TestingConfig,
     'default': DevelopmentConfig
 }

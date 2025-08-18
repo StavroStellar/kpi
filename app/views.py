@@ -55,15 +55,17 @@ def contact():
     breadcrumbs = [("Главная", url_for('views.index')), ("Контакты", url_for('views.contact'))]
     return render_with_breadcrumbs('contact.html', breadcrumbs)
 
-@views.route('/privacy-policy')
-def privacy_policy():
-    breadcrumbs = [("Главная", url_for('views.index')), ("Политика конфиденциальности", url_for('views.privacy_policy'))]
-    return render_with_breadcrumbs('privacy_policy.html', breadcrumbs)
+@views.route('/admin/employees')
+@login_required
+@admin_or_manager_required
+def admin_employees():
+    if current_user.role.name == 'manager':
+        employees_list = Employee.query.filter_by(department_id=current_user.department_id).all()
+    else:  # admin — все
+        employees_list = Employee.query.all()
 
-@views.route('/terms-of-use')
-def terms_of_use():
-    breadcrumbs = [("Главная", url_for('views.index')), ("Условия использования", url_for('views.terms_of_use'))]
-    return render_with_breadcrumbs('terms_of_use.html', breadcrumbs)
+    breadcrumbs = [("Главная", url_for('views.index')), ("Управление сотрудниками", "")]
+    return render_with_breadcrumbs('admin_employees.html', breadcrumbs, employees=employees_list)
 
 @views.route('/employees')
 def employees():

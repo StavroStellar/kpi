@@ -981,3 +981,53 @@ table tr:hover {
         padding: 20px;
     }
 }
+
+.grid-2col {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 30px;
+    border-radius: 14px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e0e7ff;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.stat-card i {
+    font-size: 2.5em;
+    color: #2c5282;
+    margin-bottom: 15px;
+}
+
+.stat-number {
+    font-size: 2.2em;
+    font-weight: 600;
+    color: #1a3b5d;
+    margin: 10px 0;
+}
+
+.stat-desc {
+    color: #555;
+    font-size: 0.95em;
+}
+
+@media (max-width: 768px) {
+    .grid-2col {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-number {
+        font-size: 1.8em;
+    }
+}

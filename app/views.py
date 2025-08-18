@@ -4,7 +4,7 @@ from app.models import Department, db
 from app.models import (
     ContactMessage, Employee, EvaluationCycle, MetricCategory,
     PerformanceMetric, EmployeeMetric, Feedback, FeedbackType,
-    FAQ, News
+    FAQ, News, Role, Department, Position
 )
 from datetime import datetime
 
@@ -272,51 +272,6 @@ def dashboard():
                                    given_evals=given_evals,
                                    feedbacks=feedbacks)
 
-@views.route('/evaluate/<int:emp_id>', methods=['GET', 'POST'])
-@login_required
-def evaluate(emp_id):
-    employee = Employee.query.get_or_404(emp_id)
-    cycle = EvaluationCycle.query.filter_by(is_active=True).first()
-    if not cycle:
-        flash("Нет активного цикла оценки.", "error")
-        return redirect(url_for('views.dashboard'))
-
-    metrics = PerformanceMetric.query.filter(
-        (PerformanceMetric.department_id == employee.department_id) |
-        (PerformanceMetric.department_id.is_(None))
-    ).filter_by(is_active=True).all()
-
-    if request.method == 'POST':
-        for metric in metrics:
-            score = request.form.get(f"score_{metric.id}")
-            comment = request.form.get(f"comment_{metric.id}")
-            if score:
-                try:
-                    score = float(score)
-                    if 0 <= score <= metric.max_score:
-                        eval_metric = EmployeeMetric(
-                            employee_id=employee.id,
-                            metric_id=metric.id,
-                            cycle_id=cycle.id,
-                            score=score,
-                            comment=comment,
-                            evaluator_id=current_user.id
-                        )
-                        db.session.add(eval_metric)
-                    else:
-                        flash(f"Балл за '{metric.name}' вне диапазона.", "error")
-                except ValueError:
-                    flash(f"Некорректное значение для '{metric.name}'.", "error")
-        db.session.commit()
-        flash(f"Оценка сотрудника {employee.full_name} сохранена.", "success")
-        return redirect(url_for('views.dashboard'))
-
-    breadcrumbs = [("Главная", url_for('views.index')), ("Оценка", "")]
-    return render_with_breadcrumbs('evaluate.html', breadcrumbs,
-                                   employee=employee,
-                                   metrics=metrics,
-                                   cycle=cycle)
-
 @views.route('/feedback/send', methods=['GET', 'POST'])
 @login_required
 def send_feedback():
@@ -408,3 +363,296 @@ def add_metric():
     categories = MetricCategory.query.all()
     departments = [current_user.department] if current_user.role.name == 'manager' else Department.query.all()
     return render_template('add_metric.html', categories=categories, departments=departments)
+
+# --- Управление сотрудниками ---
+@views.route('/admin/employees/add', methods=['GET', 'POST'])
+@login_required
+@admin_or_manager_required
+def add_employee():
+    departments = Department.query.all()
+    roles = Role.query.all()
+    positions = Position.query.all()
+
+    if request.method == 'POST':
+        full_name = request.form.get('full_name')
+        email = request.form.get('email')
+        department_id = request.form.get('department_id')
+        position_id = request.form.get('position_id')
+        role_id = request.form.get('role_id')
+        ip_address = request.form.get('ip_address')
+        password = request.form.get('password')
+
+        if not all([full_name, email, department_id, position_id, role_id, password]):
+            flash("Заполните все обязательные поля.", "error")
+        elif Employee.query.filter_by(email=email).first():
+            flash("Сотрудник с таким email уже существует.", "error")
+        else:
+            from werkzeug.security import generate_password_hash
+            employee = Employee(
+                full_name=full_name,
+                email=email,
+                password_hash=generate_password_hash(password),
+                department_id=int(department_id),
+                position_id=int(position_id),
+                role_id=int(role_id),
+                ip_address=ip_address,
+                is_active=True
+            )
+            db.session.add(employee)
+            db.session.commit()
+            flash(f"Сотрудник {full_name} добавлен.", "success")
+            return redirect(url_for('views.admin_employees'))
+
+    breadcrumbs = [("Главная", url_for('views.index')), ("Добавить сотрудника", "")]
+    return render_with_breadcrumbs('add_employee.html', breadcrumbs,
+                                   departments=departments,
+                                   roles=roles,
+                                   positions=positions)
+
+
+@views.route('/admin/employees/edit/<int:emp_id>', methods=['GET', 'POST'])
+@login_required
+@admin_or_manager_required
+def edit_employee(emp_id):
+    employee = Employee.query.get_or_404(emp_id)
+    departments = Department.query.all()
+    roles = Role.query.all()
+    positions = Position.query.filter_by(department_id=employee.department_id).all()
+
+    if request.method == 'POST':
+        employee.full_name = request.form.get('full_name')
+        employee.email = request.form.get('email')
+        employee.department_id = int(request.form.get('department_id'))
+        employee.position_id = int(request.form.get('position_id'))
+        employee.role_id = int(request.form.get('role_id'))
+        employee.ip_address = request.form.get('ip_address')
+
+        # Смена пароля (опционально)
+        password = request.form.get('password')
+        if password:
+            from werkzeug.security import generate_password_hash
+            employee.password_hash = generate_password_hash(password)
+
+        db.session.commit()
+        flash("Данные сотрудника обновлены.", "success")
+        return redirect(url_for('views.admin_employees'))
+
+    # Обновляем должности при смене подразделения (в шаблоне — JS)
+    positions = Position.query.filter_by(department_id=employee.department_id).all()
+    breadcrumbs = [("Главная", url_for('views.index')), ("Редактировать сотрудника", "")]
+    return render_with_breadcrumbs('edit_employee.html', breadcrumbs,
+                                   employee=employee,
+                                   departments=departments,
+                                   roles=roles,
+                                   positions=positions)
+
+
+@views.route('/admin/employees/delete/<int:emp_id>', methods=['POST'])
+@login_required
+@admin_or_manager_required
+def delete_employee(emp_id):
+    employee = Employee.query.get_or_404(emp_id)
+    if employee.role.name == 'admin' and current_user.role.name != 'admin':
+        flash("Вы не можете удалить другого администратора.", "error")
+    else:
+        db.session.delete(employee)
+        db.session.commit()
+        flash("Сотрудник удалён.", "success")
+    return redirect(url_for('views.admin_employees'))
+
+
+@views.route('/admin/metrics/edit/<int:metric_id>', methods=['GET', 'POST'])
+@login_required
+@admin_or_manager_required
+def edit_metric(metric_id):
+    metric = PerformanceMetric.query.get_or_404(metric_id)
+    categories = MetricCategory.query.all()
+    departments = Department.query.all()
+
+    if (current_user.role.name == 'manager' and
+        metric.department_id and
+        metric.department_id != current_user.department_id):
+        abort(403)
+
+    if request.method == 'POST':
+        metric.name = request.form.get('name')
+        metric.description = request.form.get('description')
+        metric.category_id = request.form.get('category_id')
+        metric.max_score = float(request.form.get('max_score'))
+        metric.weight = float(request.form.get('weight'))
+        dept_id = request.form.get('department_id')
+        metric.department_id = int(dept_id) if dept_id else None
+
+        db.session.commit()
+        flash("Метрика обновлена.", "success")
+        return redirect(url_for('views.admin_metrics'))
+
+    breadcrumbs = [("Главная", url_for('views.index')), ("Редактировать метрику", "")]
+    return render_with_breadcrumbs('edit_metric.html', breadcrumbs,
+                                   metric=metric,
+                                   categories=categories,
+                                   departments=departments)
+
+
+@views.route('/admin/metrics/delete/<int:metric_id>', methods=['POST'])
+@login_required
+@admin_or_manager_required
+def delete_metric(metric_id):
+    metric = PerformanceMetric.query.get_or_404(metric_id)
+
+    if (current_user.role.name == 'manager' and
+        metric.department_id and
+        metric.department_id != current_user.department_id):
+        abort(403)
+
+    db.session.delete(metric)
+    db.session.commit()
+    flash("Метрика удалена.", "success")
+    return redirect(url_for('views.admin_metrics'))
+
+
+# --- Управление циклами ---
+@views.route('/admin/cycles/add', methods=['GET', 'POST'])
+@login_required
+@admin_or_manager_required
+def add_cycle():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        start_date = request.form.get('start_date')
+        end_date = request.form.get('end_date')
+        description = request.form.get('description')
+        is_active = bool(request.form.get('is_active'))
+
+        if not all([name, start_date, end_date]):
+            flash("Заполните название, дату начала и окончания.", "error")
+        else:
+            try:
+                start = datetime.fromisoformat(start_date)
+                end = datetime.fromisoformat(end_date)
+                if start >= end:
+                    flash("Дата начала должна быть раньше даты окончания.", "error")
+                else:
+                    cycle = EvaluationCycle(
+                        name=name,
+                        start_date=start,
+                        end_date=end,
+                        description=description,
+                        is_active=is_active
+                    )
+                    db.session.add(cycle)
+                    db.session.commit()
+                    flash("Цикл оценки создан.", "success")
+                    return redirect(url_for('views.admin_cycles'))
+            except ValueError:
+                flash("Некорректный формат даты.", "error")
+
+    breadcrumbs = [("Главная", url_for('views.index')), ("Создать цикл", "")]
+    return render_with_breadcrumbs('add_cycle.html', breadcrumbs)
+
+
+@views.route('/admin/cycles/edit/<int:cycle_id>', methods=['GET', 'POST'])
+@login_required
+@admin_or_manager_required
+def edit_cycle(cycle_id):
+    cycle = EvaluationCycle.query.get_or_404(cycle_id)
+    if cycle.is_active and request.method == 'POST':
+        flash("Нельзя редактировать активный цикл.", "error")
+        return redirect(url_for('views.admin_cycles'))
+
+    if request.method == 'POST':
+        cycle.name = request.form.get('name')
+        cycle.start_date = datetime.fromisoformat(request.form.get('start_date'))
+        cycle.end_date = datetime.fromisoformat(request.form.get('end_date'))
+        cycle.description = request.form.get('description')
+        cycle.is_active = bool(request.form.get('is_active'))
+
+        if cycle.start_date >= cycle.end_date:
+            flash("Дата начала должна быть раньше даты окончания.", "error")
+        else:
+            db.session.commit()
+            flash("Цикл обновлён.", "success")
+            return redirect(url_for('views.admin_cycles'))
+
+    breadcrumbs = [("Главная", url_for('views.index')), ("Редактировать цикл", "")]
+    return render_with_breadcrumbs('edit_cycle.html', breadcrumbs, cycle=cycle)
+
+
+@views.route('/admin/cycles/delete/<int:cycle_id>', methods=['POST'])
+@login_required
+@admin_or_manager_required
+def delete_cycle(cycle_id):
+    cycle = EvaluationCycle.query.get_or_404(cycle_id)
+    if cycle.is_active:
+        flash("Нельзя удалить активный цикл.", "error")
+    else:
+        db.session.delete(cycle)
+        db.session.commit()
+        flash("Цикл удалён.", "success")
+    return redirect(url_for('views.admin_cycles'))
+
+@views.route('/evaluate/<int:emp_id>', methods=['GET', 'POST'])
+@login_required
+def evaluate(emp_id):
+    employee = Employee.query.get_or_404(emp_id)
+    cycle = EvaluationCycle.query.filter_by(is_active=True).first()
+    
+    if not cycle:
+        flash("Нет активного цикла оценки.", "error")
+        return redirect(url_for('views.dashboard'))
+
+    if current_user.role.name == 'admin':
+        pass
+    elif current_user.role.name == 'manager':
+        if employee.department_id != current_user.department_id:
+            flash("Вы можете оценивать только сотрудников своего подразделения.", "error")
+            return redirect(url_for('views.dashboard'))
+    else:
+        if employee.id != current_user.id:
+            flash("Вы можете оценить только себя.", "error")
+            return redirect(url_for('views.dashboard'))
+
+    metrics = PerformanceMetric.query.filter(
+        (PerformanceMetric.department_id == employee.department_id) |
+        (PerformanceMetric.department_id.is_(None))
+    ).filter_by(is_active=True).all()
+
+    if request.method == 'POST':
+        for metric in metrics:
+            score = request.form.get(f"score_{metric.id}")
+            comment = request.form.get(f"comment_{metric.id}")
+            if score:
+                try:
+                    score = float(score)
+                    if 0 <= score <= metric.max_score:
+                        existing = EmployeeMetric.query.filter_by(
+                            employee_id=employee.id,
+                            metric_id=metric.id,
+                            cycle_id=cycle.id,
+                            evaluator_id=current_user.id
+                        ).first()
+                        if existing:
+                            existing.score = score
+                            existing.comment = comment
+                        else:
+                            eval_metric = EmployeeMetric(
+                                employee_id=employee.id,
+                                metric_id=metric.id,
+                                cycle_id=cycle.id,
+                                score=score,
+                                comment=comment,
+                                evaluator_id=current_user.id
+                            )
+                            db.session.add(eval_metric)
+                    else:
+                        flash(f"Балл за '{metric.name}' вне диапазона.", "error")
+                except ValueError:
+                    flash(f"Некорректное значение для '{metric.name}'.", "error")
+        db.session.commit()
+        flash(f"Оценка сотрудника {employee.full_name} сохранена.", "success")
+        return redirect(url_for('views.dashboard'))
+
+    breadcrumbs = [("Главная", url_for('views.index')), ("Оценка", "")]
+    return render_with_breadcrumbs('evaluate.html', breadcrumbs,
+                                   employee=employee,
+                                   metrics=metrics,
+                                   cycle=cycle)

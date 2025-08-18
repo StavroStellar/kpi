@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 
-{% block title %}Добавить сотрудника{% endblock %}
+{% block title %}Редактировать сотрудника{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
-    <h1>Добавить сотрудника</h1>
+    <h1>Редактировать сотрудника</h1>
 </div>
 
 <form method="POST">
     <div class="form-row">
         <div class="form-group">
             <label>ФИО</label>
-            <input type="text" name="full_name" required>
+            <input type="text" name="full_name" value="{{ employee.full_name }}" required>
         </div>
         <div class="form-group">
             <label>Email</label>
-            <input type="email" name="email" required>
+            <input type="email" name="email" value="{{ employee.email }}" required>
         </div>
     </div>
 
@@ -24,16 +24,21 @@
         <div class="form-group">
             <label>Подразделение</label>
             <select name="department_id" required onchange="loadPositions(this.value)">
-                <option value="">Выберите подразделение</option>
                 {% for dept in departments %}
-                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                <option value="{{ dept.id }}" {% if dept.id == employee.department_id %}selected{% endif %}>
+                    {{ dept.name }}
+                </option>
                 {% endfor %}
             </select>
         </div>
         <div class="form-group">
             <label>Должность</label>
             <select name="position_id" id="position_select" required>
-                <option value="">Сначала выберите подразделение</option>
+                {% for pos in positions %}
+                <option value="{{ pos.id }}" {% if pos.id == employee.position_id %}selected{% endif %}>
+                    {{ pos.title }}
+                </option>
+                {% endfor %}
             </select>
         </div>
     </div>
@@ -43,25 +48,22 @@
             <label>Роль в системе</label>
             <select name="role_id" required>
                 {% for role in roles %}
-                <option value="{{ role.id }}">{{ 
-                    'Администратор' if role.name == 'admin' else
-                    'Менеджер' if role.name == 'manager' else 'Сотрудник' 
-                }}</option>
+                <option value="{{ role.id }}" {% if role.id == employee.role_id %}selected{% endif %}>
+                    {{ 
+                        'Администратор' if role.name == 'admin' else
+                        'Менеджер' if role.name == 'manager' else 'Сотрудник' 
+                    }}
+                </option>
                 {% endfor %}
             </select>
         </div>
         <div class="form-group">
-            <label>IP-адрес рабочего места (опционально)</label>
-            <input type="text" name="ip_address" placeholder="192.168.1.100">
+            <label>IP-адрес</label>
+            <input type="text" name="ip_address" value="{{ employee.ip_address or '' }}">
         </div>
     </div>
 
-    <div class="form-group">
-        <label>Пароль (временно, для теста)</label>
-        <input type="password" name="password" required>
-    </div>
-
-    <button type="submit" class="btn">Сохранить сотрудника</button>
+    <button type="submit" class="btn">Сохранить изменения</button>
 </form>
 
 <a href="{{ url_for('views.admin_employees') }}" class="btn btn-outline">Отмена</a>
@@ -79,6 +81,7 @@ const positionData = {
 
 function loadPositions(deptId) {
     const posSelect = document.getElementById('position_select');
+    const currentPosId = "{{ employee.position_id }}";
     posSelect.innerHTML = '<option value="">Выберите должность</option>';
     
     if (deptId && positionData[deptId]) {
@@ -86,10 +89,18 @@ function loadPositions(deptId) {
             const opt = document.createElement('option');
             opt.value = pos.id;
             opt.textContent = pos.title;
+            if (pos.id == currentPosId && deptId == "{{ employee.department_id }}") {
+                opt.selected = true;
+            }
             posSelect.appendChild(opt);
         });
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const deptSelect = document.querySelector('select[name="department_id"]');
+    if (deptSelect.value) loadPositions(deptSelect.value);
+});
 </script>
 
 {% endblock %}

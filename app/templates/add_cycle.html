@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Создать цикл оценки{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Создать цикл оценки</h1>
+</div>
+
+<form method="POST">
+    <div class="form-group">
+        <label>Название цикла</label>
+        <input type="text" name="name" required>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Дата начала</label>
+            <input type="datetime-local" name="start_date" required>
+        </div>
+        <div class="form-group">
+            <label>Дата окончания</label>
+            <input type="datetime-local" name="end_date" required>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Описание (опционально)</label>
+        <textarea name="description" rows="3"></textarea>
+    </div>
+    <div class="form-group">
+        <label>
+            <input type="checkbox" name="is_active" checked>
+            Сделать активным
+        </label>
+    </div>
+    <button type="submit" class="btn">Создать цикл</button>
+</form>
+
+<a href="{{ url_for('views.admin_cycles') }}" class="btn btn-outline">Отмена</a>
+
+{% endblock %}

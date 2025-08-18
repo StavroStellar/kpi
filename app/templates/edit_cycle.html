@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Редактировать цикл оценки{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Редактировать цикл оценки</h1>
+</div>
+
+<form method="POST">
+    <div class="form-group">
+        <label>Название цикла</label>
+        <input type="text" name="name" value="{{ cycle.name }}" required>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label>Дата начала</label>
+            <input type="datetime-local" name="start_date"
+                   value="{{ cycle.start_date.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </div>
+        <div class="form-group">
+            <label>Дата окончания</label>
+            <input type="datetime-local" name="end_date"
+                   value="{{ cycle.end_date.strftime('%Y-%m-%dT%H:%M') }}" required>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>Описание (опционально)</label>
+        <textarea name="description" rows="3">{{ cycle.description or '' }}</textarea>
+    </div>
+    <div class="form-group">
+        <label>
+            <input type="checkbox" name="is_active" {% if cycle.is_active %}checked{% endif %}>
+            Активный цикл
+        </label>
+    </div>
+    <button type="submit" class="btn">Сохранить изменения</button>
+</form>
+
+<a href="{{ url_for('views.admin_cycles') }}" class="btn btn-outline">Отмена</a>
+
+{% endblock %}

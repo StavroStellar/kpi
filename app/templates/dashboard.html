@@ -1,0 +1,137 @@
+<!-- templates/dashboard.html -->
+{% extends "base.html" %}
+
+{% block title %}Личный кабинет — ИС ОЭРСК{% endblock %}
+
+{% block content %}
+
+<div class="dash-header">
+    <h1>Личный кабинет</h1>
+    <p class="dash-subtitle">Добро пожаловать, <strong>{{ user.full_name }}</strong> ({{ {
+        'admin': 'Администратор',
+        'manager': 'Менеджер',
+        'employee': 'Сотрудник'
+    }[user.role.name] }})</p>
+</div>
+
+<!-- Полученные оценки -->
+{% if received_evals %}
+<div class="dash-section">
+    <h2>Ваши оценки</h2>
+    <p>Результаты оценки эффективности по метрикам.</p>
+    <table class="dash-table">
+        <thead>
+            <tr>
+                <th>Метрика</th>
+                <th>Категория</th>
+                <th>Балл</th>
+                <th>Макс.</th>
+                <th>Цикл</th>
+                <th>Дата</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for eval in received_evals %}
+            <tr>
+                <td>{{ eval.metric.name }}</td>
+                <td>{{ eval.metric.category.name }}</td>
+                <td><strong>{{ "%.1f"|format(eval.score) }}</strong></td>
+                <td>{{ eval.metric.max_score }}</td>
+                <td>{{ eval.cycle.name }}</td>
+                <td>{{ eval.evaluated_at.strftime('%d.%m.%Y') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="dash-alert dash-alert-info">
+    У вас пока нет оценок.
+</div>
+{% endif %}
+
+<!-- Обратная связь -->
+{% if feedbacks %}
+<div class="dash-section">
+    <h2>Обратная связь</h2>
+    {% for fb in feedbacks %}
+    <div class="dash-feedback-item">
+        <p><strong>От {{ 'анонимного пользователя' if fb.is_anonymous else fb.sender.full_name }}</strong>
+           ({{ fb.feedback_type.name }})</p>
+        <p>{{ fb.content }}</p>
+        <small class="dash-text-muted">{{ fb.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Ваши задачи -->
+{% if tasks %}
+<div class="dash-section">
+    <h2>Ваши задачи</h2>
+    <table class="dash-table">
+        <thead>
+            <tr>
+                <th>Заголовок</th>
+                <th>Статус</th>
+                <th>Приоритет</th>
+                <th>Срок</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td>{{ task.title }}</td>
+                <td>
+                    <span class="dash-badge {% if task.status == 'done' %}dash-badge-success
+                           {% elif task.status == 'in_progress' %}dash-badge-warning
+                           {% else %}dash-badge-secondary{% endif %}">
+                        {{ {
+                            'pending': 'Ожидает',
+                            'in_progress': 'В работе',
+                            'done': 'Выполнена'
+                        }[task.status] }}
+                    </span>
+                </td>
+                <td>
+                    <span class="dash-badge {% if task.priority == 'high' %}dash-badge-danger
+                           {% elif task.priority == 'medium' %}dash-badge-warning
+                           {% else %}dash-badge-secondary{% endif %}">
+                        {{ {
+                            'low': 'Низкий',
+                            'medium': 'Средний',
+                            'high': 'Высокий'
+                        }[task.priority] }}
+                    </span>
+                </td>
+                <td>{{ task.deadline.strftime('%d.%m.%Y') if task.deadline else '–' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Действия по ролям -->
+{% if user.role.name in ['manager', 'admin'] %}
+<div class="dash-cta-wrapper">
+    <div class="dash-cta-card">
+        <h2>Действия для вашей роли</h2>
+        <p>Вы можете оценивать сотрудников и управлять контентом.</p>
+        <div class="dash-action-buttons">
+            <a href="{{ url_for('views.evaluate', emp_id=user.id) }}" class="btn">Оценить себя (тест)</a>
+            <a href="{{ url_for('views.send_feedback') }}" class="btn btn-outline">Отправить обратную связь</a>
+            {% if user.role.name == 'admin' %}
+            <a href="{{ url_for('views.admin_faq') }}" class="btn btn-outline">Управление FAQ</a>
+            <a href="{{ url_for('views.admin_news') }}" class="btn btn-outline">Управление новостями</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="dash-action-links">
+    <a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
+</div>
+
+{% endblock %}

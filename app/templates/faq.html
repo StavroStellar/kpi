@@ -4,24 +4,28 @@
 
 {% block content %}
 
-<div class="page-header">
+<div class="faq-page-header">
     <h1>Вопросы</h1>
     <p class="lead">Ответы на основные вопросы о системе оценки эффективности.</p>
 </div>
 
-{% for category in categories %}
-<div class="section">
-    <h2>{{ category }}</h2>
-    {% for item in faq_items if item.category == category %}
-    <div class="faq-item">
-        <h3>{{ item.question }}</h3>
-        <p>{{ item.answer }}</p>
+<div class="faq-container">
+    {% for category in categories %}
+    <div class="faq-category">
+        <h2 class="faq-category-title">{{ category }}</h2>
+        {% for item in faq_items if item.category == category %}
+        <div class="faq-question-item">
+            <h3 class="faq-question">{{ item.question }}</h3>
+            <div class="faq-answer">
+                <p>{{ item.answer }}</p>
+            </div>
+        </div>
+        {% endfor %}
     </div>
     {% endfor %}
 </div>
-{% endfor %}
 
-<div class="action-buttons">
+<div class="faq-action-buttons">
     <a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
 </div>
 

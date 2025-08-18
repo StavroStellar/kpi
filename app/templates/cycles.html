@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Циклы оценки — ИС ОЭРСК{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Циклы оценки эффективности</h1>
+    <p class="lead">
+        Оценка сотрудников проводится в рамках определённых циклов — временных периодов, 
+        в течение которых собираются и анализируются данные.
+    </p>
+</div>
+
+<!-- Список всех циклов -->
+{% if cycles %}
+<div class="section">
+    <h2>Все циклы</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>Период</th>
+                <th>Статус</th>
+                <th>Описание</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cycle in cycles %}
+            <tr>
+                <td>{{ cycle.name }}</td>
+                <td>
+                    {{ cycle.start_date.strftime('%d.%m.%Y') }} —
+                    {{ cycle.end_date.strftime('%d.%m.%Y') }}
+                </td>
+                <td>
+                    <span class="badge {% if cycle.is_active %}badge-active{% else %}badge-completed{% endif %}">
+                        {{ 'Активен' if cycle.is_active else 'Завершён' }}
+                    </span>
+                </td>
+                <td>{{ cycle.description or '–' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    Циклы оценки не найдены.
+</div>
+{% endif %}
+
+<!-- Информация о системе циклов -->
+<div class="section">
+    <h2>Как работают циклы оценки</h2>
+    <p>
+        Каждый цикл оценки — это временной интервал, в рамках которого сотрудники оцениваются по установленным метрикам.
+    </p>
+    <ul class="styled-list">
+        <li><strong>Активный цикл:</strong> в нём можно вносить оценки. Только один цикл может быть активным одновременно.</li>
+        <li><strong>Завершённый цикл:</strong> данные зафиксированы, оценки не редактируются.</li>
+        <li>Циклы могут быть ежемесячными, квартальными или специальными (например, для аттестации).</li>
+    </ul>
+</div>
+
+<div class="action-buttons">
+    <a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
+</div>
+
+{% endblock %}

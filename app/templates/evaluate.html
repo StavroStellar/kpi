@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Оценить сотрудника — {{ employee.full_name }}{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Оценка эффективности</h1>
+    <p class="lead">
+        Сотрудник: <strong>{{ employee.full_name }}</strong><br>
+        Подразделение: {{ employee.department.name }}<br>
+        Должность: {{ employee.position.title }}<br>
+        Цикл: <strong>{{ cycle.name }}</strong>
+    </p>
+</div>
+
+<form method="POST">
+    <p>Пожалуйста, оцените сотрудника по следующим критериям:</p>
+
+    <!-- Производительность -->
+    {% set category = metrics | selectattr('category.name', 'equalto', 'Производительность') | list %}
+    {% if category %}
+    <div class="section">
+        <h2>Производительность</h2>
+        <p>Объём выполненной работы, соблюдение сроков, загруженность.</p>
+        {% for metric in category %}
+        <div class="metric-item">
+            <label>{{ metric.name }}</label>
+            <p class="metric-desc">{{ metric.description }}</p>
+            <div class="form-row">
+                <div class="form-group" style="max-width: 200px;">
+                    <input type="number"
+                           name="score_{{ metric.id }}"
+                           step="0.1"
+                           min="0"
+                           max="{{ metric.max_score }}"
+                           placeholder="0–{{ metric.max_score }}"
+                           required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Комментарий (опционально)</label>
+                <textarea name="comment_{{ metric.id }}" rows="2" placeholder="Например: задачи выполняются вовремя, но требуется улучшение документации"></textarea>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Качество работы -->
+    {% set category = metrics | selectattr('category.name', 'equalto', 'Качество работы') | list %}
+    {% if category %}
+    <div class="section">
+        <h2>Качество работы</h2>
+        <p>Точность, отсутствие ошибок, соответствие стандартам.</p>
+        {% for metric in category %}
+        <div class="metric-item">
+            <label>{{ metric.name }}</label>
+            <p class="metric-desc">{{ metric.description }}</p>
+            <div class="form-row">
+                <div class="form-group" style="max-width: 200px;">
+                    <input type="number"
+                           name="score_{{ metric.id }}"
+                           step="0.1"
+                           min="0"
+                           max="{{ metric.max_score }}"
+                           placeholder="0–{{ metric.max_score }}"
+                           required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Комментарий</label>
+                <textarea name="comment_{{ metric.id }}" rows="2"></textarea>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Поведенческие компетенции -->
+    {% set category = metrics | selectattr('category.name', 'equalto', 'Поведенческие компетенции') | list %}
+    {% if category %}
+    <div class="section">
+        <h2>Поведенческие компетенции</h2>
+        <p>Коммуникация, ответственность, работа в команде, инициативность.</p>
+        {% for metric in category %}
+        <div class="metric-item">
+            <label>{{ metric.name }}</label>
+            <p class="metric-desc">{{ metric.description }}</p>
+            <div class="form-row">
+                <div class="form-group" style="max-width: 200px;">
+                    <input type="number"
+                           name="score_{{ metric.id }}"
+                           step="0.1"
+                           min="0"
+                           max="{{ metric.max_score }}"
+                           placeholder="0–{{ metric.max_score }}"
+                           required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Комментарий</label>
+                <textarea name="comment_{{ metric.id }}" rows="2"></textarea>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Стратегический вклад -->
+    {% set category = metrics | selectattr('category.name', 'equalto', 'Стратегический вклад') | list %}
+    {% if category %}
+    <div class="section">
+        <h2>Стратегический вклад</h2>
+        <p>Участие в улучшении процессов, инновациях, наставничестве.</p>
+        {% for metric in category %}
+        <div class="metric-item">
+            <label>{{ metric.name }}</label>
+            <p class="metric-desc">{{ metric.description }}</p>
+            <div class="form-row">
+                <div class="form-group" style="max-width: 200px;">
+                    <input type="number"
+                           name="score_{{ metric.id }}"
+                           step="0.1"
+                           min="0"
+                           max="{{ metric.max_score }}"
+                           placeholder="0–{{ metric.max_score }}"
+                           required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Комментарий</label>
+                <textarea name="comment_{{ metric.id }}" rows="2"></textarea>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Кнопки -->
+    <div class="action-buttons">
+        <button type="submit" class="btn">Сохранить оценку</button>
+        <a href="{{ url_for('views.dashboard') }}" class="btn btn-outline">Отмена</a>
+    </div>
+</form>
+
+{% endblock %}

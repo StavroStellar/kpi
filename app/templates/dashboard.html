@@ -1,4 +1,3 @@
-<!-- templates/dashboard.html -->
 {% extends "base.html" %}
 
 {% block title %}Личный кабинет — ИС ОЭРСК{% endblock %}
@@ -112,18 +111,24 @@
 </div>
 {% endif %}
 
-<!-- Действия по ролям -->
 {% if user.role.name in ['manager', 'admin'] %}
 <div class="dash-cta-wrapper">
     <div class="dash-cta-card">
         <h2>Действия для вашей роли</h2>
-        <p>Вы можете оценивать сотрудников и управлять контентом.</p>
+        <p>Вы можете управлять данными и участвовать в оценке.</p>
         <div class="dash-action-buttons">
-            <a href="{{ url_for('views.evaluate', emp_id=user.id) }}" class="btn">Оценить себя (тест)</a>
-            <a href="{{ url_for('views.send_feedback') }}" class="btn btn-outline">Отправить обратную связь</a>
+            <a href="{{ url_for('views.evaluate', emp_id=user.id) }}" class="btn">Оценить</a>
+            <a href="{{ url_for('views.send_feedback') }}" class="btn btn-outline">Обратная связь</a>
+            <a href="{{ url_for('views.admin_news') }}" class="btn btn-outline">Новости</a>
+            
             {% if user.role.name == 'admin' %}
-            <a href="{{ url_for('views.admin_faq') }}" class="btn btn-outline">Управление FAQ</a>
-            <a href="{{ url_for('views.admin_news') }}" class="btn btn-outline">Управление новостями</a>
+                <a href="{{ url_for('views.admin_faq') }}" class="btn btn-outline">FAQ</a>       
+            {% endif %}
+
+            {% if user.role.name == 'manager' %}
+                <a href="{{ url_for('views.admin_employees') }}" class="btn btn-outline">Сотрудники</a>
+                <a href="{{ url_for('views.admin_metrics') }}" class="btn btn-outline">Метрики</a>
+                <a href="{{ url_for('views.admin_cycles') }}" class="btn btn-outline">Циклы</a>
             {% endif %}
         </div>
     </div>

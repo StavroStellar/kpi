@@ -1,0 +1,95 @@
+<!-- templates/index.html -->
+{% extends "base.html" %}
+
+{% block title %}Главная — ИС ОЭРСК{% endblock %}
+
+{% block content %}
+
+<div class="hero">
+    <h1>Добро пожаловать в ИС ОЭРСК</h1>
+    <p class="lead">
+        Информационная система оценки эффективности работы сотрудников компании АО «НИИ ТП»
+    </p>
+</div>
+
+<div class="grid-3col">
+
+    <!-- О системе -->
+    <div class="card">
+        <h2>О системе</h2>
+        <p>
+            Информационная система оценки эффективности работы сотрудников компании АО «НИИ ТП» 
+            разработана в рамках производственной преддипломной практики и предназначена для 
+            автоматизации процесса оценки персонала.
+        </p>
+        <p>
+            Поддерживается ручной ввод данных, настройка метрик под подразделения, 
+            циклы оценки и обратная связь.
+        </p>
+    </div>
+
+    <!-- Активные циклы -->
+    {% if active_cycles %}
+    <div class="card">
+        <div class="card-icon">
+            <i class="fas fa-calendar-check"></i>
+        </div>
+        <h2>Активные циклы оценки</h2>
+        <table class="table-minimal">
+            <thead>
+                <tr>
+                    <th>Цикл</th>
+                    <th>Период</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cycle in active_cycles %}
+                <tr>
+                    <td>{{ cycle.name }}</td>
+                    <td>
+                        {{ cycle.start_date.strftime('%d.%m') }}–{{ cycle.end_date.strftime('%d.%m') }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Последние новости -->
+    {% if latest_news %}
+    <div class="card">
+        <div class="card-icon">
+            <i class="fas fa-newspaper"></i>
+        </div>
+        <h2>Последние новости</h2>
+        <div class="news-list">
+            {% for news in latest_news %}
+            <div class="news-item">
+                <h3><a href="{{ url_for('views.news_detail', news_id=news.id) }}">{{ news.title }}</a></h3>
+                <small class="text-muted">{{ news.published_at.strftime('%d.%m.%Y') }}</small>
+                <p>{{ news.content[:100] }}{% if news.content|length > 100 %}...{% endif %}</p>
+            </div>
+            {% endfor %}
+        </div>
+        <a href="{{ url_for('views.news_list') }}" class="btn btn-small">Все новости</a>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- CTA -->
+<div class="cta-section">
+    <div class="card cta-card">
+        <h2>Начать работу</h2>
+        {% if current_user.is_authenticated %}
+            <p>Вы вошли как <strong>{{ current_user.full_name }}</strong></p>
+            <a href="{{ url_for('views.dashboard') }}" class="btn">Перейти в личный кабинет</a>
+        {% else %}
+            <p>Войдите в систему, чтобы участвовать в оценке или просматривать свои результаты.</p>
+            <a href="{{ url_for('auth.login') }}" class="btn">Войти</a>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

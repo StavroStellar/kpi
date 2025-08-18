@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ИС ОЭРСК — Оценка эффективности сотрудников{% endblock %}</title>
+
+    <!-- Стили -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+    <!-- Иконки -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- JS -->
+    <script src="{{ url_for('static', filename='scripts.js') }}" defer></script>
+</head>
+<body>
+
+    <!-- Шапка -->
+    <header class="header" role="banner">
+        <div class="logo">
+            <h1><a href="{{ url_for('views.index') }}">ИС ОЭРСК</a></h1>
+            <p>АО «НИИ ТП»</p>
+        </div>
+
+        <!-- Меню авторизации -->
+        <div class="auth-bar">
+            {% if current_user.is_authenticated %}
+                <span>Привет, {{ current_user.full_name.split()[0] }}!</span>
+                <a href="{{ url_for('views.dashboard') }}" class="btn btn-small">Кабинет</a>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-small btn-outline">Выход</a>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}" class="btn btn-small">Вход</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Основное меню -->
+    <nav class="main-menu" role="navigation">
+        <ul>
+            <li><a href="{{ url_for('views.index') }}">Главная</a></li>
+            <li><a href="{{ url_for('views.about') }}">О компании</a></li>
+            <li><a href="{{ url_for('views.employees') }}">Сотрудники</a></li>
+            <li><a href="{{ url_for('views.metrics') }}">Метрики</a></li>
+            <li><a href="{{ url_for('views.cycles') }}">Циклы</a></li>
+            <li><a href="{{ url_for('views.news_list') }}">Новости</a></li>
+            <li><a href="{{ url_for('views.faq') }}">FAQ</a></li>
+            <li><a href="{{ url_for('views.documentation') }}">Документация</a></li>
+            <li><a href="{{ url_for('views.stats') }}">Статистика</a></li>
+            <li><a href="{{ url_for('views.contact') }}">Контакты</a></li>
+        </ul>
+    </nav>
+
+    <!-- Основной контент -->
+    <div class="container">
+
+        <!-- Хлебные крошки -->
+        {% if breadcrumbs %}
+        <div class="breadcrumbs" aria-label="Хлебные крошки">
+            {% for crumb in breadcrumbs %}
+                {% if not loop.last %}
+                    <a href="{{ crumb[1] }}">{{ crumb[0] }}</a> >
+                {% else %}
+                    <span>{{ crumb[0] }}</span>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Flash-сообщения -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Основной контент -->
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+
+    </div>
+
+    <!-- Подвал -->
+    <footer class="footer" role="contentinfo">
+        <div class="footer-content">
+            <div>
+                <strong>Автор работы:</strong> Болгов Лев Николаевич
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

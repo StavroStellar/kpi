@@ -116,10 +116,97 @@ def news_detail(news_id):
 
 @views.route('/stats')
 def stats():
-    total_emps = Employee.query.count()
+    total_emps = Employee.query.filter_by(is_active=True).count()
     total_cycles = EvaluationCycle.query.count()
     active_metrics = PerformanceMetric.query.filter_by(is_active=True).count()
     feedback_count = Feedback.query.count()
+
+    active_cycle = EvaluationCycle.query.filter_by(is_active=True).first()
+
+    if not active_cycle:
+        flash("Нет активного цикла оценки.", "info")
+        top_employees = []
+        evaluated_count = 0
+        not_evaluated_count = 0
+        department_stats = []
+        category_names = []
+        category_scores = []
+        all_scores = []
+        dept_names = []
+        dept_avg_scores = []
+    else:
+        from sqlalchemy import func
+
+        # --- Топ-5 ---
+        top_employee_data = db.session.query(
+            Employee.full_name,
+            Department.name.label('dept_name'),
+            func.avg(EmployeeMetric.score).label('avg_score')
+        ).join(EmployeeMetric, Employee.id == EmployeeMetric.employee_id) \
+         .join(Department, Employee.department_id == Department.id) \
+         .filter(EmployeeMetric.cycle_id == active_cycle.id) \
+         .group_by(Employee.id, Department.name) \
+         .order_by(func.avg(EmployeeMetric.score).desc()) \
+         .limit(5).all()
+
+        top_employees = [
+            {"full_name": row.full_name, "department": {"name": row.dept_name}, "avg_score": float(row.avg_score)}
+            for row in top_employee_data
+        ]
+
+        # --- Завершённость ---
+        all_employees = Employee.query.filter_by(is_active=True).all()
+        evaluated_ids = {item[0] for item in db.session.query(EmployeeMetric.employee_id).filter(
+            EmployeeMetric.cycle_id == active_cycle.id
+        ).distinct().all()}
+        evaluated_count = len(evaluated_ids)
+        not_evaluated_count = len(all_employees) - evaluated_count
+
+        # --- Активность по подразделениям ---
+        department_stats = []
+        for dept in Department.query.all():
+            emps = Employee.query.filter_by(department_id=dept.id, is_active=True).all()
+            if emps:
+                total = len(emps)
+                evaluated = len([e for e in emps if e.id in evaluated_ids])
+                percent = (evaluated / total) * 100
+                department_stats.append({
+                    "name": dept.name,
+                    "total": total,
+                    "evaluated": evaluated,
+                    "percent": round(percent, 1)
+                })
+
+        # --- Все оценки для гистограммы ---
+        all_scores = [float(row.score) for row in db.session.query(EmployeeMetric.score).filter(
+            EmployeeMetric.cycle_id == active_cycle.id
+        ).all()]
+
+        # --- Средний балл по подразделениям (для pie и bar) ---
+        dept_avg_data = db.session.query(
+            Department.name,
+            func.avg(EmployeeMetric.score).label('avg_score')
+        ).join(Employee, Department.id == Employee.department_id) \
+         .join(EmployeeMetric, Employee.id == EmployeeMetric.employee_id) \
+         .filter(EmployeeMetric.cycle_id == active_cycle.id) \
+         .group_by(Department.id, Department.name).all()
+
+        dept_names = [row.name for row in dept_avg_data]
+        dept_avg_scores = [float(row.avg_score) for row in dept_avg_data]
+
+        # --- Средние по категориям ---
+        category_data = db.session.query(
+            MetricCategory.name,
+            func.avg(EmployeeMetric.score).label('avg_score')
+        ).join(PerformanceMetric, EmployeeMetric.metric_id == PerformanceMetric.id) \
+        .join(MetricCategory, PerformanceMetric.category_id == MetricCategory.id) \
+        .filter(EmployeeMetric.cycle_id == active_cycle.id) \
+        .group_by(MetricCategory.id, MetricCategory.name) \
+        .all()
+
+        category_names = [item.name for item in category_data]
+        category_scores = [float(item.avg_score) if item.avg_score else 0.0 for item in category_data]
+
     breadcrumbs = [("Главная", url_for('views.index')), ("Статистика", url_for('views.stats'))]
     return render_with_breadcrumbs('stats.html', breadcrumbs,
                                    total_emps=total_emps,

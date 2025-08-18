@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Метрики оценки — ИС ОЭРСК{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Метрики оценки эффективности</h1>
+    <p class="lead">
+        Система оценки основана на гибких метриках, сгруппированных по категориям. 
+        Каждая метрика может применяться ко всему персоналу или ограниченно — по подразделениям.
+    </p>
+</div>
+
+<!-- Отображение по категориям -->
+{% for category in categories %}
+<div class="section">
+    <h2>{{ category.name }}</h2>
+    <p><strong>Вес категории:</strong> {{ "%.1f"|format(category.weight * 100) }}%</p>
+
+    {% set category_metrics = metrics | selectattr('category_id', 'equalto', category.id) | list %}
+    
+    {% if category_metrics %}
+    <table>
+        <thead>
+            <tr>
+                <th>Метрика</th>
+                <th>Описание</th>
+                <th>Макс. балл</th>
+                <th>Вес</th>
+                <th>Подразделение</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in category_metrics %}
+            <tr>
+                <td>{{ m.name }}</td>
+                <td>{{ m.description or '–' }}</td>
+                <td>{{ m.max_score }}</td>
+                <td>{{ "%.1f"|format(m.weight) }}</td>
+                <td>
+                    {% if m.department %}
+                        <span class="badge">{{ m.department.name }}</span>
+                    {% else %}
+                        <span class="badge badge-secondary">Общая</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">Метрики в этой категории отсутствуют.</p>
+    {% endif %}
+</div>
+{% endfor %}
+
+<!-- Справка -->
+<div class="section">
+    <h2>Как работает система метрик</h2>
+    <ul class="styled-list">
+        <li><strong>Производительность:</strong> количество и скорость выполнения задач</li>
+        <li><strong>Качество:</strong> корректность, отсутствие ошибок, соответствие стандартам</li>
+        <li><strong>Поведенческие компетенции:</strong> коммуникация, инициативность, ответственность</li>
+        <li><strong>Стратегический вклад:</strong> участие в инновациях, наставничество, развитие процессов</li>
+    </ul>
+    <p>Оценка сотрудника рассчитывается как взвешенная сумма по всем активным метрикам.</p>
+</div>
+
+<div class="action-buttons">
+    <a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
+</div>
+
+{% endblock %}

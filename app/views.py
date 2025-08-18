@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
-from app.models import db
+from app.models import Department, db
 from app.models import (
     ContactMessage, Employee, EvaluationCycle, MetricCategory,
     PerformanceMetric, EmployeeMetric, Feedback, FeedbackType,
@@ -347,3 +347,64 @@ def send_feedback():
     breadcrumbs = [("Главная", url_for('views.index')), ("Отправить обратную связь", "")]
     return render_with_breadcrumbs('send_feedback.html', breadcrumbs,
                                    employees=employees, types=types)
+
+@views.route('/admin/metrics')
+@login_required
+@admin_or_manager_required
+def admin_metrics():
+    if current_user.role.name == 'manager':
+        metrics = PerformanceMetric.query.filter_by(department_id=current_user.department_id).all()
+    else:
+        metrics = PerformanceMetric.query.all()
+
+    categories = MetricCategory.query.all()
+    departments = Department.query.all()
+
+    breadcrumbs = [("Главная", url_for('views.index')), ("Управление метриками", "")]
+    return render_with_breadcrumbs('admin_metrics.html', breadcrumbs,
+                                   metrics=metrics,
+                                   categories=categories,
+                                   departments=departments)
+
+@views.route('/admin/cycles')
+@login_required
+@admin_or_manager_required
+def admin_cycles():
+    cycles = EvaluationCycle.query.order_by(EvaluationCycle.start_date.desc()).all()
+    breadcrumbs = [("Главная", url_for('views.index')), ("Управление циклами", "")]
+    return render_with_breadcrumbs('admin_cycles.html', breadcrumbs, cycles=cycles)
+
+@views.route('/admin/metrics/add', methods=['GET', 'POST'])
+@login_required
+@admin_or_manager_required
+def add_metric():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        category_id = request.form.get('category_id')
+        max_score = float(request.form.get('max_score', 10))
+        weight = float(request.form.get('weight', 1.0))
+        description = request.form.get('description')
+        department_id = request.form.get('department_id')  # Может быть None
+
+        # Менеджер может добавить только в своё подразделение
+        if current_user.role.name == 'manager':
+            if department_id and int(department_id) != current_user.department_id:
+                flash("Вы можете добавлять метрики только в своё подразделение.", "error")
+                return redirect(url_for('views.admin_metrics'))
+
+        metric = PerformanceMetric(
+            name=name,
+            category_id=category_id,
+            max_score=max_score,
+            weight=weight,
+            description=description,
+            department_id=department_id if department_id else None
+        )
+        db.session.add(metric)
+        db.session.commit()
+        flash("Метрика добавлена.", "success")
+        return redirect(url_for('views.admin_metrics'))
+
+    categories = MetricCategory.query.all()
+    departments = [current_user.department] if current_user.role.name == 'manager' else Department.query.all()
+    return render_template('add_metric.html', categories=categories, departments=departments)

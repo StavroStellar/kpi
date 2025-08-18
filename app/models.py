@@ -1,6 +1,7 @@
 from datetime import datetime
 from app.extensions import db
 from datetime import datetime
+from flask_login import UserMixin
 
 # Роль пользователя
 class Role(db.Model):
@@ -26,7 +27,7 @@ class Position(db.Model):
     description = db.Column(db.Text)
 
 # Сотрудник
-class Employee(db.Model):
+class Employee(db.Model, UserMixin):
     __tablename__ = 'employees'
     id = db.Column(db.Integer, primary_key=True)
     full_name = db.Column(db.String(150), nullable=False)
@@ -35,7 +36,7 @@ class Employee(db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=False)
     position_id = db.Column(db.Integer, db.ForeignKey('positions.id'), nullable=False)
-    ip_address = db.Column(db.String(45))  # IP рабочего места
+    ip_address = db.Column(db.String(45))
     hire_date = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
 

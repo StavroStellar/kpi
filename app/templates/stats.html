@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Статистика и аналитика — ИС ОЭРСК{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Аналитика системы</h1>
+    <p class="lead">
+        Сводные данные по эффективности, оценкам и активности сотрудников АО «НИИ ТП».
+    </p>
+</div>
+
+<!-- Основные показатели -->
+<div class="grid-2col">
+    <div class="stat-card">
+        <i class="fas fa-users"></i>
+        <h3>Сотрудники</h3>
+        <p class="stat-number">{{ total_emps }}</p>
+        <p class="stat-desc">Всего в системе</p>
+    </div>
+
+    <div class="stat-card">
+        <i class="fas fa-calendar-check"></i>
+        <h3>Циклы</h3>
+        <p class="stat-number">{{ total_cycles }}</p>
+        <p class="stat-desc">Проведено и запланировано</p>
+    </div>
+
+    <div class="stat-card">
+        <i class="fas fa-tasks"></i>
+        <h3>Метрики</h3>
+        <p class="stat-number">{{ active_metrics }}</p>
+        <p class="stat-desc">Активных KPI</p>
+    </div>
+</div>
+
+{% if active_cycle %}
+
+    <!-- Топ-5 сотрудников -->
+    <div class="section">
+        <h2>Топ-5 по эффективности ({{ active_cycle.name }})</h2>
+        {% if top_employees %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Место</th>
+                    <th>ФИО</th>
+                    <th>Подразделение</th>
+                    <th>Средний балл</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in top_employees %}
+                <tr>
+                    <td><strong>{{ loop.index }}.</strong></td>
+                    <td>{{ emp.full_name }}</td>
+                    <td>{{ emp.department.name }}</td>
+                    <td><strong>{{ "%.2f"|format(emp.avg_score) }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    
+        <div class="action-buttons" style="margin-top: 1rem;">
+            <a href="{{ url_for('views.all_employees') }}" class="btn btn-secondary">
+                Показать всех сотрудников
+            </a>
+        </div>
+        {% else %}
+        <p>Нет данных по оценкам.</p>
+        {% endif %}
+    </div>
+    </br>
+    <!-- Активность по подразделениям -->
+    <div class="section">
+        <h2>Активность подразделений</h2>
+        {% if department_stats %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Подразделение</th>
+                    <th>Сотрудников</th>
+                    <th>Оценено</th>
+                    <th>Процент</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dept in department_stats %}
+                <tr>
+                    <td>{{ dept.name }}</td>
+                    <td>{{ dept.total }}</td>
+                    <td>{{ dept.evaluated }}</td>
+                    <td>{{ dept.percent }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>Нет данных по подразделениям.</p>
+        {% endif %}
+    </div>
+
+{% else %}
+    <div class="alert alert-info">
+        Нет активного цикла оценки. Данные по эффективности недоступны.
+    </div>
+{% endif %}
+
+<div class="action-buttons">
+    <a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
+</div>
+
+{% endblock %}

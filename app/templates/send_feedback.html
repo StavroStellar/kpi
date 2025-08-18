@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Отправить обратную связь{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Отправить обратную связь</h1></div>
+<form method="POST">
+    <div class="form-group">
+        <label>Сотрудник</label>
+        <select name="employee_id" required>
+            {% for emp in employees %}<option value="{{ emp.id }}">{{ emp.full_name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Тип</label>
+        <select name="type_id" required>
+            {% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Сообщение</label>
+        <textarea name="content" rows="5" required></textarea>
+    </div>
+    <label><input type="checkbox" name="anonymous"> Отправить анонимно</label>
+    <button type="submit" class="btn">Отправить</button>
+</form>
+<a href="{{ url_for('views.dashboard') }}" class="btn btn-outline">Отмена</a>
+{% endblock %}

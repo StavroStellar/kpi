@@ -1,0 +1,40 @@
+from flask import Flask, render_template  # ← добавь render_template
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
+from app.config import config
+import os
+
+db = SQLAlchemy()
+login_manager = LoginManager()
+
+
+def create_app(config_name=None):
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'default')
+
+    app = Flask(__name__)
+    app.config.from_object(config[config_name])
+
+    db.init_app(app)
+    login_manager.init_app(app)
+
+    from app.models import Employee
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.get(Employee, int(user_id))
+
+    from app.views import views as views_blueprint
+    from app.auth import auth as auth_blueprint
+
+    app.register_blueprint(views_blueprint)
+    app.register_blueprint(auth_blueprint)
+
+    @app.errorhandler(404)
+    def not_found_error(error):
+        return render_template('error_404.html'), 404
+
+    with app.app_context():
+        db.create_all()
+
+    return app

@@ -708,3 +708,44 @@ table tr:hover {
         font-size: 2.5em;
     }
 }
+
+.employees-intro {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+}
+
+/* Бейджи для ролей */
+.badge-admin {
+    background: #7c3aed;
+    color: white;
+}
+
+.badge-manager {
+    background: #059669;
+    color: white;
+}
+
+.badge-employee {
+    background: #64748b;
+    color: white;
+}
+
+/* Адаптивность таблицы */
+@media (max-width: 768px) {
+    table {
+        font-size: 0.9em;
+    }
+
+    table th,
+    table td {
+        padding: 8px;
+    }
+
+    /* На малых экранах можно сделать прокрутку */
+    .section {
+        overflow-x: auto;
+    }
+}

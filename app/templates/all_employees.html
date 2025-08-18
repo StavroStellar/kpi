@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Все сотрудники — ИС ОЭРСК{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Все сотрудники по эффективности ({{ cycle_name }})</h1>
+    <p class="lead">
+        Полный список сотрудников, упорядоченный по среднему баллу.
+    </p>
+</div>
+
+<div class="section">
+    {% if employees %}
+    <table>
+        <thead>
+            <tr>
+                <th>Место</th>
+                <th>ФИО</th>
+                <th>Подразделение</th>
+                <th>Средний балл</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for emp in employees %}
+            <tr>
+                <td><strong>{{ loop.index }}.</strong></td>
+                <td>{{ emp.full_name }}</td>
+                <td>{{ emp.department.name }}</td>
+                <td><strong>{{ "%.2f"|format(emp.avg_score) }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Нет данных по оценкам.</p>
+    {% endif %}
+</div>
+
+<div class="action-buttons">
+    <a href="{{ url_for('views.stats') }}" class="btn btn-outline">← Назад к аналитике</a>
+</div>
+
+{% endblock %}

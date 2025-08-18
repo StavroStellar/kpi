@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from app.config import config
 import os
+from app.models import Role
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -36,5 +37,11 @@ def create_app(config_name=None):
 
     with app.app_context():
         db.create_all()
+        if Role.query.count() == 0:
+            admin_role = Role(name='admin', description='Полный доступ')
+            manager_role = Role(name='manager', description='Руководитель подразделения')
+            employee_role = Role(name='employee', description='Обычный сотрудник')
+            db.session.add_all([admin_role, manager_role, employee_role])
+            db.session.commit()
 
     return app

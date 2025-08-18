@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
+from app.models import db
 from app.models import (
-    db, ContactMessage, Employee, EvaluationCycle, MetricCategory,
+    ContactMessage, Employee, EvaluationCycle, MetricCategory,
     PerformanceMetric, EmployeeMetric, Feedback, FeedbackType,
     FAQ, News
 )

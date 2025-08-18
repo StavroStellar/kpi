@@ -1,13 +1,7 @@
 from flask import Flask, render_template  # ← добавь render_template
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+from app.extensions import db, login_manager
 from app.config import config
 import os
-from app.models import Role
-
-db = SQLAlchemy()
-login_manager = LoginManager()
-
 
 def create_app(config_name=None):
     if config_name is None:
@@ -15,11 +9,10 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
     app.config.from_object(config[config_name])
-
     db.init_app(app)
     login_manager.init_app(app)
 
-    from app.models import Employee
+    from app.models import Employee, Role
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -36,12 +29,11 @@ def create_app(config_name=None):
         return render_template('error_404.html'), 404
 
     with app.app_context():
-        db.create_all()
-        if Role.query.count() == 0:
-            admin_role = Role(name='admin', description='Полный доступ')
-            manager_role = Role(name='manager', description='Руководитель подразделения')
-            employee_role = Role(name='employee', description='Обычный сотрудник')
-            db.session.add_all([admin_role, manager_role, employee_role])
-            db.session.commit()
-
+            db.create_all()
+            if Role.query.count() == 0:
+                admin_role = Role(name='admin', description='Полный доступ')
+                manager_role = Role(name='manager', description='Руководитель подразделения')
+                employee_role = Role(name='employee', description='Обычный сотрудник')
+                db.session.add_all([admin_role, manager_role, employee_role])
+                db.session.commit()
     return app

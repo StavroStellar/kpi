@@ -1,7 +1,6 @@
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-
-db = SQLAlchemy()
+from app.extensions import db
+from datetime import datetime
 
 # Роль пользователя
 class Role(db.Model):

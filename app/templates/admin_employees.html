@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Управление сотрудниками{% endblock %}
+{% block content %}
+<div class="page-header"><h1>Управление сотрудниками</h1></div>
+
+<a href="{{ url_for('views.add_employee') }}" class="btn">Добавить сотрудника</a>
+
+<table>
+    <thead>
+        <tr>
+            <th>ФИО</th>
+            <th>Должность</th>
+            <th>Подразделение</th>
+            <th>Роль</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for emp in employees %}
+        <tr>
+            <td>{{ emp.full_name }}</td>
+            <td>{{ emp.position.title }}</td>
+            <td>{{ emp.department.name }}</td>
+            <td>{{ 'Администратор' if emp.role.name == 'admin' else 'Менеджер' if emp.role.name == 'manager' else 'Сотрудник' }}</td>
+            <td>
+                <a href="{{ url_for('views.edit_employee', emp_id=emp.id) }}" class="btn btn-small">Ред.</a>
+                <form method="POST" action="{{ url_for('views.delete_employee', emp_id=emp.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-small btn-danger confirm-delete">Удалить</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
+{% endblock %}

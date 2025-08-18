@@ -125,7 +125,50 @@ def stats():
                                    total_emps=total_emps,
                                    total_cycles=total_cycles,
                                    active_metrics=active_metrics,
-                                   feedback_count=feedback_count)
+                                   feedback_count=feedback_count,
+                                   active_cycle=active_cycle,
+                                   top_employees=top_employees,
+                                   evaluated_count=evaluated_count,
+                                   not_evaluated_count=not_evaluated_count,
+                                   department_stats=department_stats,
+                                   category_names=category_names,
+                                   category_scores=category_scores,
+                                   all_scores=all_scores,
+                                   dept_names=dept_names,
+                                   dept_avg_scores=dept_avg_scores)
+
+@views.route('/stats/all-employees')
+def all_employees():
+    active_cycle = EvaluationCycle.query.filter_by(is_active=True).first()
+    if not active_cycle:
+        flash("Нет активного цикла оценки.", "warning")
+        return redirect(url_for('views.stats'))
+
+    from sqlalchemy import func
+
+    # Все сотрудники с их средними баллами
+    all_employee_data = db.session.query(
+        Employee.full_name,
+        Department.name.label('dept_name'),
+        func.avg(EmployeeMetric.score).label('avg_score')
+    ).join(EmployeeMetric, Employee.id == EmployeeMetric.employee_id) \
+     .join(Department, Employee.department_id == Department.id) \
+     .filter(EmployeeMetric.cycle_id == active_cycle.id) \
+     .group_by(Employee.id, Department.name) \
+     .order_by(func.avg(EmployeeMetric.score).desc()) \
+     .all()
+
+    employees = [
+        {"full_name": row.full_name, "department": {"name": row.dept_name}, "avg_score": float(row.avg_score)}
+        for row in all_employee_data
+    ]
+
+    breadcrumbs = [
+        ("Главная", url_for('views.index')),
+        ("Статистика", url_for('views.stats')),
+        ("Все сотрудники", url_for('views.all_employees'))
+    ]
+    return render_with_breadcrumbs('all_employees.html', breadcrumbs, employees=employees, cycle_name=active_cycle.name)
 
 @views.route('/categories')
 def categories():

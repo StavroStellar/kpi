@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Управление новостями — Админка{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Управление новостями</h1>
+    <p class="lead">Добавляйте, редактируйте и публикуйте новости компании.</p>
+</div>
+
+<div class="action-buttons">
+    <a href="{{ url_for('views.add_news') }}" class="btn">Добавить новость</a>
+</div>
+
+<!-- Список новостей -->
+{% for news in news_items %}
+<div class="admin-item">
+    <div class="admin-item-header">
+        <h3><a href="{{ url_for('views.news_detail', news_id=news.id) }}">{{ news.title }}</a></h3>
+        <span class="badge {% if news.is_published %}badge-active{% else %}badge-secondary{% endif %}">
+            {{ 'Опубликована' if news.is_published else 'Черновик' }}
+        </span>
+    </div>
+
+    <p class="news-meta">
+        <span>Дата публикации: {{ news.published_at.strftime('%d.%m.%Y') }}</span>
+        {% if news.author %}
+        <span>Автор: {{ news.author.full_name }}</span>
+        {% endif %}
+    </p>
+
+    <p>{{ news.content[:150] }}{% if news.content|length > 150 %}...{% endif %}</p>
+
+    <div class="action-buttons">
+        <a href="{{ url_for('views.edit_news', news_id=news.id) }}" class="btn btn-small">Редактировать</a>
+        <form action="{{ url_for('views.delete_news', news_id=news.id) }}" method="POST" style="display: inline;">
+            <button type="submit" class="btn btn-small btn-danger confirm-delete">Удалить</button>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% if not news_items %}
+<div class="alert alert-info">
+    Новости отсутствуют.
+</div>
+{% endif %}
+
+<div class="action-buttons">
+    <a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
+</div>
+
+{% endblock %}

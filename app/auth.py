@@ -18,7 +18,7 @@ def login():
             login_user(employee)
 
             flash(f'Добро пожаловать, {employee.full_name}!', 'success')
-            return redirect(url_for('views.admin_faq')) 
+            return redirect(url_for('views.employees')) 
         else:
             flash('Неверный email или пароль.', 'error')
 

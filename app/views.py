@@ -1,4 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from datetime import datetime
+import io
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, send_file
 from flask_login import login_required, current_user
 from app.models import Department, db
 from app.models import (
@@ -6,9 +8,12 @@ from app.models import (
     PerformanceMetric, EmployeeMetric, Feedback, FeedbackType,
     FAQ, News, Role, Department, Position
 )
-from datetime import datetime
+from fpdf import FPDF
 
 views = Blueprint('views', __name__)
+FONT_PATH = "app/static/fonts/DejaVuSans.ttf"
+FONT_PATH_B = "app/static/fonts/DejaVuSans-Bold.ttf"
+FONT_PATH_I = "app/static/fonts/DejaVuSans-BoldOblique.ttf"
 
 # Вспомогательная функция для хлебных крошек
 def render_with_breadcrumbs(template, breadcrumbs, **context):
@@ -786,3 +791,204 @@ def evaluate(emp_id):
                                    employee=employee,
                                    metrics=metrics,
                                    cycle=cycle)
+
+@views.route('/export-import')
+@login_required
+@admin_or_manager_required
+def export_import():
+    if current_user.role.name not in ['manager', 'admin']:
+        abort(403)
+
+    breadcrumbs = [
+        ("Главная", url_for('views.index')),
+        ("Импорт/Экспорт", "")
+    ]
+    return render_with_breadcrumbs('export_import.html', breadcrumbs)
+
+@views.route('/import-data', methods=['POST'])
+@login_required
+@admin_or_manager_required
+def import_data():
+    if 'file' not in request.files:
+        flash("Файл не выбран.", "error")
+        return redirect(url_for('views.export_import'))
+
+    file = request.files['file']
+    if file.filename == '':
+        flash("Файл не выбран.", "error")
+        return redirect(url_for('views.export_import'))
+
+    # Проверка расширения
+    if not file.filename.lower().endswith(('.xlsx', '.xls')):
+        flash("Поддерживаются только .xlsx и .xls файлы.", "error")
+        return redirect(url_for('views.export_import'))
+
+    active_cycle = EvaluationCycle.query.filter_by(is_active=True).first()
+    if not active_cycle:
+        flash("Нет активного цикла оценки.", "error")
+        return redirect(url_for('views.export_import'))
+
+    try:
+        # Сохраним файл временно
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+            file.save(tmp.name)
+            tmp_path = tmp.name
+
+        from openpyxl import load_workbook
+        workbook = load_workbook(tmp_path)
+        sheet = workbook.active
+
+        if sheet.max_row < 2:
+            flash("Файл пуст или содержит только заголовок.", "error")
+            return redirect(url_for('views.export_import'))
+
+        imported = 0
+        for row in sheet.iter_rows(min_row=2, values_only=True):
+            if not row[0]:
+                continue
+
+            emp_email, metric_name, score, comment = row[0], row[1], row[2], row[3] or ''
+
+            employee = Employee.query.filter_by(email=emp_email).first()
+            metric = PerformanceMetric.query.filter_by(name=metric_name).first()
+
+            if not employee:
+                flash(f"Не найден сотрудник с email: {emp_email}", "warning")
+                continue
+            if not metric:
+                flash(f"Не найдена метрика: {metric_name}", "warning")
+                continue
+
+            # Проверка score
+            try:
+                score = float(score)
+            except (TypeError, ValueError):
+                flash(f"Некорректный балл для {emp_email}: {score}", "error")
+                continue
+
+            # Обновляем или создаём оценку
+            existing = EmployeeMetric.query.filter_by(
+                employee_id=employee.id,
+                metric_id=metric.id,
+                cycle_id=active_cycle.id
+            ).first()
+
+            if existing:
+                existing.score = score
+                existing.comment = str(comment)
+            else:
+                eval_metric = EmployeeMetric(
+                    employee_id=employee.id,
+                    metric_id=metric.id,
+                    cycle_id=active_cycle.id,
+                    score=score,
+                    comment=str(comment),
+                    evaluator_id=current_user.id
+                )
+                db.session.add(eval_metric)
+            imported += 1
+
+        db.session.commit()
+        flash(f"Успешно импортировано {imported} оценок.", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        print("Ошибка при импорте:", str(e))
+        flash(f"Ошибка при обработке файла: {str(e)}", "error")
+
+    return redirect(url_for('views.export_import'))
+
+@views.route('/export-pdf', methods=['POST'])
+@login_required
+@admin_or_manager_required
+def export_pdf():
+    report_type = request.form.get('report_type')
+    department_id = request.form.get('department_id')
+
+    active_cycle = EvaluationCycle.query.filter_by(is_active=True).first()
+    if not active_cycle:
+        flash("Нет активного цикла оценки.", "error")
+        return redirect(request.url)
+
+    from sqlalchemy import func
+
+    # Получаем средний балл
+    avg_score = db.session.query(func.avg(EmployeeMetric.score)).filter(
+        EmployeeMetric.cycle_id == active_cycle.id
+    ).scalar()
+    avg_score = avg_score or 0
+
+    query = db.session.query(
+        Employee.full_name,
+        Department.name.label('dept_name'),
+        func.avg(EmployeeMetric.score).label('avg_score')
+    ).join(EmployeeMetric, Employee.id == EmployeeMetric.employee_id) \
+     .join(Department, Employee.department_id == Department.id) \
+     .filter(EmployeeMetric.cycle_id == active_cycle.id) \
+     .group_by(Employee.id, Department.name)
+    
+    if report_type == 'above_avg':
+        query = query.having(func.avg(EmployeeMetric.score) > avg_score)
+        title = "Сотрудники с оценкой выше средней"
+    elif report_type == 'below_avg':
+        query = query.having(func.avg(EmployeeMetric.score) < avg_score)
+        title = "Сотрудники с оценкой ниже средней"
+    elif report_type == 'by_department' and department_id:
+        query = query.filter(Employee.department_id == int(department_id))
+        dept_name = Department.query.get(department_id).name
+        title = f"Сотрудники подразделения: {dept_name}"
+    else:
+        title = "Все сотрудники"
+
+    employees = query.order_by(func.avg(EmployeeMetric.score).desc()).all()
+
+    pdf = FPDF()
+    pdf.add_font("DejaVu", style="", fname=FONT_PATH)
+    pdf.add_font("DejaVu", style="B", fname=FONT_PATH_B)
+    pdf.add_font("DejaVu", style="I", fname=FONT_PATH_I)
+    pdf.set_font("DejaVu", size=12)
+    pdf.add_page()
+
+    # Заголовок
+    pdf.cell(0, 10, 'Отчёт по эффективности', ln=True, align='C')
+    pdf.cell(0, 10, title, ln=True, align='C')
+    pdf.ln(5)
+
+    # Информация
+    pdf.cell(0, 8, f"Цикл: {active_cycle.name}", ln=True)
+    pdf.cell(0, 8, f"Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}", ln=True)
+    pdf.ln(10)
+
+    # Шапка таблицы
+    pdf.set_font("DejaVu", 'B', 12)
+    col_widths = [80, 60, 30]
+    pdf.set_fill_color(200, 220, 255)
+    pdf.cell(col_widths[0], 10, 'ФИО', border=1, fill=True)
+    pdf.cell(col_widths[1], 10, 'Подразделение', border=1, fill=True)
+    pdf.cell(col_widths[2], 10, 'Ср. балл', border=1, fill=True)
+    pdf.ln(10)
+
+    # Данные
+    pdf.set_font("DejaVu", size=11)
+    for emp in employees:
+        pdf.cell(col_widths[0], 8, emp.full_name, border=1)
+        pdf.cell(col_widths[1], 8, emp.dept_name, border=1)
+        pdf.cell(col_widths[2], 8, f"{emp.avg_score:.2f}", border=1)
+        pdf.ln(8)
+
+    pdf.ln(10)
+    pdf.set_font("DejaVu", 'I', 10)
+    pdf.cell(0, 8, f"Всего: {len(employees)} сотруд.", ln=True)
+
+    pdf_output = pdf.output(dest='S')
+    pdf_bytes = io.BytesIO(pdf_output)
+
+    # Отправляем как файл
+    filename = f"report_{report_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return send_file(
+        pdf_bytes,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/pdf'
+    )

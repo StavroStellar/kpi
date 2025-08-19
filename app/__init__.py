@@ -1,4 +1,4 @@
-from flask import Flask, render_template  # ← добавь render_template
+from flask import Flask, render_template
 from app.extensions import db, login_manager
 from app.config import config
 import os

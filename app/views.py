@@ -9,6 +9,8 @@ from app.models import (
     FAQ, News, Role, Department, Position
 )
 from fpdf import FPDF
+from io import BytesIO
+from fpdf.enums import XPos, YPos
 
 views = Blueprint('views', __name__)
 FONT_PATH = "app/static/fonts/DejaVuSans.ttf"
@@ -951,13 +953,13 @@ def export_pdf():
     pdf.add_page()
 
     # Заголовок
-    pdf.cell(0, 10, 'Отчёт по эффективности', ln=True, align='C')
-    pdf.cell(0, 10, title, ln=True, align='C')
+    pdf.cell(0, 10, 'Отчёт по эффективности', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+    pdf.cell(0, 10, title, new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
     pdf.ln(5)
 
     # Информация
-    pdf.cell(0, 8, f"Цикл: {active_cycle.name}", ln=True)
-    pdf.cell(0, 8, f"Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}", ln=True)
+    pdf.cell(0, 8, f"Цикл: {active_cycle.name}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 8, f"Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(10)
 
     # Шапка таблицы
@@ -979,16 +981,13 @@ def export_pdf():
 
     pdf.ln(10)
     pdf.set_font("DejaVu", 'I', 10)
-    pdf.cell(0, 8, f"Всего: {len(employees)} сотруд.", ln=True)
+    pdf.cell(0, 8, f"Всего: {len(employees)} сотруд.", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-    pdf_output = pdf.output(dest='S')
-    pdf_bytes = io.BytesIO(pdf_output)
+    pdf_output = pdf.output()
 
-    # Отправляем как файл
-    filename = f"report_{report_type}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
     return send_file(
-        pdf_bytes,
+        BytesIO(pdf_output),
         as_attachment=True,
-        download_name=filename,
+        download_name=f'report_{report_type}_{datetime.now().strftime("%d%m%Y")}.pdf',
         mimetype='application/pdf'
     )

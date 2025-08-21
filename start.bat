@@ -1,7 +1,4 @@
-﻿@echo off
-:: Start script for Flask app
-
-echo [1/4] Checking virtual environment...
+﻿echo [1/4] Checking virtual environment...
 if not exist venv (
     echo Creating virtual environment...
     python -m venv venv
@@ -17,6 +14,7 @@ call venv\Scripts\activate
 
 echo [3/4] Installing dependencies...
 if exist requirements.txt (
+    python -m pip install --upgrade pip
     pip install -r requirements.txt
     if errorlevel 1 (
         echo Error: Failed to install packages.
@@ -31,7 +29,6 @@ if exist requirements.txt (
 
 echo [4/4] Starting Flask app...
 set FLASK_APP=main.py
-set FLASK_ENV=development
 flask run --host=127.0.0.1 --port=5000
 
 echo.

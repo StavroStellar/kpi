@@ -692,16 +692,24 @@ def add_cycle():
 @admin_or_manager_required
 def edit_cycle(cycle_id):
     cycle = EvaluationCycle.query.get_or_404(cycle_id)
-    if cycle.is_active and request.method == 'POST':
-        flash("Нельзя редактировать активный цикл.", "error")
-        return redirect(url_for('views.admin_cycles'))
 
     if request.method == 'POST':
+        new_is_active = bool(request.form.get('is_active'))
+
+        if cycle.is_active and not new_is_active:
+            cycle.is_active = False
+            db.session.commit()
+            flash("Цикл успешно деактивирован.", "success")
+            return redirect(url_for('views.admin_cycles'))
+        elif cycle.is_active:
+            flash("Нельзя изменять параметры активного цикла. Можно только деактивировать.", "error")
+            return redirect(url_for('views.admin_cycles'))
+
         cycle.name = request.form.get('name')
         cycle.start_date = datetime.fromisoformat(request.form.get('start_date'))
         cycle.end_date = datetime.fromisoformat(request.form.get('end_date'))
         cycle.description = request.form.get('description')
-        cycle.is_active = bool(request.form.get('is_active'))
+        cycle.is_active = new_is_active
 
         if cycle.start_date >= cycle.end_date:
             flash("Дата начала должна быть раньше даты окончания.", "error")
@@ -710,7 +718,7 @@ def edit_cycle(cycle_id):
             flash("Цикл обновлён.", "success")
             return redirect(url_for('views.admin_cycles'))
 
-    breadcrumbs = [("Главная", url_for('views.index')), ("Редактировать цикл", "")]
+    breadcrumbs = [("Главная", url_for('views.index')), (" ", "")]
     return render_with_breadcrumbs('edit_cycle.html', breadcrumbs, cycle=cycle)
 
 

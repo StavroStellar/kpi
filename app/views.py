@@ -35,6 +35,17 @@ def admin_or_manager_required(f):
 @views.route('/')
 @views.route('/index')
 def index():
+    from datetime import datetime
+    current_date = datetime.utcnow()
+    expired_active_cycles = EvaluationCycle.query.filter(
+        EvaluationCycle.is_active == True,
+        EvaluationCycle.end_date < current_date
+    ).all()
+    for cycle in expired_active_cycles:
+        cycle.is_active = False
+        db.session.add(cycle)
+    if expired_active_cycles:
+        db.session.commit()
     active_cycles = EvaluationCycle.query.filter_by(is_active=True).all()
     latest_news = News.query.filter_by(is_published=True).order_by(News.published_at.desc()).limit(3).all()
     breadcrumbs = [("Главная", url_for('views.index'))]
@@ -89,6 +100,17 @@ def metrics():
 
 @views.route('/cycles')
 def cycles():
+    from datetime import datetime
+    current_date = datetime.utcnow()
+    expired_active_cycles = EvaluationCycle.query.filter(
+        EvaluationCycle.is_active == True,
+        EvaluationCycle.end_date < current_date
+    ).all()
+    for cycle in expired_active_cycles:
+        cycle.is_active = False
+        db.session.add(cycle)
+    if expired_active_cycles:
+        db.session.commit()
     cycles_list = EvaluationCycle.query.order_by(EvaluationCycle.start_date.desc()).all()
     breadcrumbs = [("Главная", url_for('views.index')), ("Циклы оценки", url_for('views.cycles'))]
     return render_with_breadcrumbs('cycles.html', breadcrumbs, cycles=cycles_list)

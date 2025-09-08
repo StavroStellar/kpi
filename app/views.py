@@ -1080,3 +1080,38 @@ def export_pdf():
         download_name=f'report_{report_type}_{datetime.now().strftime("%d%m%Y")}.pdf',
         mimetype='application/pdf'
     )
+
+@views.route('/admin/messages')
+@login_required
+@admin_or_manager_required
+def admin_messages():
+    if current_user.role.name != 'admin':
+        abort(403)
+    messages = ContactMessage.query.order_by(ContactMessage.created_at.desc()).all()
+    breadcrumbs = [("Главная", url_for('views.index')), ("Сообщения обратной связи", "")]
+    return render_with_breadcrumbs('admin_messages.html', breadcrumbs, messages=messages)
+
+
+@views.route('/admin/messages/toggle-read/<int:message_id>', methods=['POST'])
+@login_required
+@admin_or_manager_required
+def toggle_message_read(message_id):
+    if current_user.role.name != 'admin':
+        abort(403)
+    message = ContactMessage.query.get_or_404(message_id)
+    message.read = not message.read
+    db.session.commit()
+    return redirect(url_for('views.admin_messages'))
+
+
+@views.route('/admin/messages/delete/<int:message_id>', methods=['POST'])
+@login_required
+@admin_or_manager_required
+def delete_message(message_id):
+    if current_user.role.name != 'admin':
+        abort(403)
+    message = ContactMessage.query.get_or_404(message_id)
+    db.session.delete(message)
+    db.session.commit()
+    flash("Сообщение удалено.", "success")
+    return redirect(url_for('views.admin_messages'))

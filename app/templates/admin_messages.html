@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Сообщения обратной связи — Админ-панель{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Сообщения обратной связи</h1>
+</div>
+
+{% if messages %}
+    <div class="section">
+        <table>
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Имя</th>
+                    <th>Email</th>
+                    <th>Сообщение</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for msg in messages %}
+                <tr {% if not msg.read %}style="background-color: #fff3cd;"{% endif %}>
+                    <td>{{ msg.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>{{ msg.name }}</td>
+                    <td>{{ msg.email }}</td>
+                    <td>{{ msg.message }}</td>
+                    <td>
+                        <span class="badge {% if msg.read %}badge-employee{% else %}badge-manager{% endif %}">
+                            {{ 'Прочитано' if msg.read else 'Новое' }}
+                        </span>
+                    </td>
+                    <td>
+                        <form method="POST" action="{{ url_for('views.toggle_message_read', message_id=msg.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-small">
+                                {{ 'Скрыть' if msg.read else 'Прочитано' }}
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('views.delete_message', message_id=msg.id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-small btn-danger confirm-delete">Удалить</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="alert alert-info">
+        Сообщений обратной связи пока нет.
+    </div>
+{% endif %}
+
+<div class="action-buttons">
+    <a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
+</div>
+
+{% endblock %}

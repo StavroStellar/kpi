@@ -122,7 +122,8 @@
             <a href="{{ url_for('views.admin_news') }}" class="btn btn-outline">Новости</a>
             
             {% if user.role.name == 'admin' %}
-                <a href="{{ url_for('views.admin_faq') }}" class="btn btn-outline">FAQ</a>       
+                <a href="{{ url_for('views.admin_faq') }}" class="btn btn-outline">FAQ</a>  
+                <a href="{{ url_for('views.admin_messages') }}" class="btn btn-outline">Сообщения</a>     
             {% endif %}
 
             {% if user.role.name == 'manager' %}

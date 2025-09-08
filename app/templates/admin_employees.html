@@ -3,8 +3,23 @@
 {% block content %}
 <div class="page-header"><h1>Управление сотрудниками</h1></div>
 
+<div class="filter-section">
+    <form method="GET" action="{{ url_for('views.admin_employees') }}" class="filter-form">
+        <label for="department_filter">Фильтр по подразделению:</label>
+        <select name="department" id="department_filter" onchange="this.form.submit()">
+            <option value="">Все подразделения</option>
+            {% for dept in departments %}
+            <option value="{{ dept.id }}" {% if selected_dept == dept.id %}selected{% endif %}>
+                {{ dept.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
 <a href="{{ url_for('views.add_employee') }}" class="btn">Добавить сотрудника</a>
 
+{% if employees %}
 <table>
     <thead>
         <tr>
@@ -33,6 +48,11 @@
         {% endfor %}
     </tbody>
 </table>
+{% else %}
+    <div class="alert alert-info">
+        Сотрудники не найдены.
+    </div>
+{% endif %}
 
 <a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
 {% endblock %}

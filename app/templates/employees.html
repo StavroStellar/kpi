@@ -9,6 +9,20 @@
     Список всех активных сотрудников, участвующих в системе оценки эффективности.
 </p>
 
+<div class="section">
+    <form method="GET" action="{{ url_for('views.employees') }}" class="filter-form">
+        <label for="department_filter">Фильтр по подразделению:</label>
+        <select name="department" id="department_filter" onchange="this.form.submit()">
+            <option value="">Все подразделения</option>
+            {% for dept in departments %}
+            <option value="{{ dept.id }}" {% if selected_dept == dept.id %}selected{% endif %}>
+                {{ dept.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
 {% if employees %}
     <div class="section">
         <h2>Список сотрудников</h2>

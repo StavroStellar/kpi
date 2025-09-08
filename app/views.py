@@ -77,19 +77,31 @@ def contact():
 @login_required
 @admin_or_manager_required
 def admin_employees():
+    dept_filter = request.args.get('department', type=int)
     if current_user.role.name == 'manager':
-        employees_list = Employee.query.filter_by(department_id=current_user.department_id).all()
-    else:  # admin — все
-        employees_list = Employee.query.all()
-
+        query = Employee.query.filter_by(department_id=current_user.department_id)
+    else:
+        query = Employee.query
+    if dept_filter:
+        query = query.filter_by(department_id=dept_filter)
+    employees_list = query.all()
+    if current_user.role.name == 'manager':
+        departments = [current_user.department]
+    else:
+        departments = Department.query.all()
     breadcrumbs = [("Главная", url_for('views.index')), ("Управление сотрудниками", "")]
-    return render_with_breadcrumbs('admin_employees.html', breadcrumbs, employees=employees_list)
+    return render_with_breadcrumbs('admin_employees.html', breadcrumbs, employees=employees_list, departments=departments, selected_dept=dept_filter)
 
 @views.route('/employees')
 def employees():
-    emps = Employee.query.filter_by(is_active=True).all()
+    dept_filter = request.args.get('department', type=int)
+    query = Employee.query.filter_by(is_active=True)
+    if dept_filter:
+        query = query.filter_by(department_id=dept_filter)
+    emps = query.all()
+    departments = Department.query.all()
     breadcrumbs = [("Главная", url_for('views.index')), ("Сотрудники", url_for('views.employees'))]
-    return render_with_breadcrumbs('employees.html', breadcrumbs, employees=emps)
+    return render_with_breadcrumbs('employees.html', breadcrumbs, employees=emps, departments=departments, selected_dept=dept_filter)
 
 @views.route('/metrics')
 def metrics():

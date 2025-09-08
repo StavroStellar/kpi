@@ -156,3 +156,24 @@ class News(db.Model):
     image_url = db.Column(db.String(500))
 
     author = db.relationship('Employee', backref='news_created')
+
+class MetricExclusion(db.Model):
+    __tablename__ = 'metric_exclusions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    metric_id = db.Column(db.Integer, db.ForeignKey('performance_metrics.id'), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
+    position_id = db.Column(db.Integer, db.ForeignKey('positions.id'), nullable=True)
+
+    metric = db.relationship('PerformanceMetric', backref=db.backref('exclusions', lazy='dynamic', cascade="all, delete-orphan"))
+    employee = db.relationship('Employee')
+    position = db.relationship('Position')
+
+    __table_args__ = (
+        db.CheckConstraint('(employee_id IS NOT NULL AND position_id IS NULL) OR (employee_id IS NULL AND position_id IS NOT NULL)',
+                           name='check_exactly_one_target'),
+    )
+
+    def __repr__(self):
+        target = self.employee.full_name if self.employee else self.position.title if self.position else "Unknown"
+        return f"<Exclusion: Metric {self.metric_id} excludes {target}>"

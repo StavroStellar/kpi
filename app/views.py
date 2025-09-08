@@ -2,7 +2,7 @@ from datetime import datetime
 import io
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, send_file
 from flask_login import login_required, current_user
-from app.models import Department, db
+from app.models import Department, MetricExclusion, db
 from app.models import (
     ContactMessage, Employee, EvaluationCycle, MetricCategory,
     PerformanceMetric, EmployeeMetric, Feedback, FeedbackType,
@@ -527,13 +527,31 @@ def add_metric():
             department_id=department_id if department_id else None
         )
         db.session.add(metric)
+        db.session.flush()
+        excluded_position_ids = request.form.getlist('exclude_position_id')
+        for pos_id in excluded_position_ids:
+            if pos_id:
+                exclusion = MetricExclusion(metric_id=metric.id, position_id=int(pos_id))
+                db.session.add(exclusion)
+        excluded_employee_ids = request.form.getlist('exclude_employee_id')
+        for emp_id in excluded_employee_ids:
+            if emp_id:
+                exclusion = MetricExclusion(metric_id=metric.id, employee_id=int(emp_id))
+                db.session.add(exclusion)
         db.session.commit()
         flash("Метрика добавлена.", "success")
         return redirect(url_for('views.admin_metrics'))
 
     categories = MetricCategory.query.all()
     departments = [current_user.department] if current_user.role.name == 'manager' else Department.query.all()
-    return render_template('add_metric.html', categories=categories, departments=departments)
+    all_positions = Position.query.all()
+    all_employees = Employee.query.filter_by(is_active=True).all()
+
+    return render_template('add_metric.html',
+                           categories=categories,
+                           departments=departments,
+                           all_positions=all_positions,
+                           all_employees=all_employees)
 
 # --- Управление сотрудниками ---
 @views.route('/admin/employees/add', methods=['GET', 'POST'])
@@ -654,15 +672,34 @@ def edit_metric(metric_id):
         dept_id = request.form.get('department_id')
         metric.department_id = int(dept_id) if dept_id else None
 
+        MetricExclusion.query.filter_by(metric_id=metric.id).delete()
+
+        excluded_position_ids = request.form.getlist('exclude_position_id')
+        for pos_id in excluded_position_ids:
+            if pos_id:
+                exclusion = MetricExclusion(metric_id=metric.id, position_id=int(pos_id))
+                db.session.add(exclusion)
+        excluded_employee_ids = request.form.getlist('exclude_employee_id')
+        for emp_id in excluded_employee_ids:
+            if emp_id:
+                exclusion = MetricExclusion(metric_id=metric.id, employee_id=int(emp_id))
+                db.session.add(exclusion)
+
         db.session.commit()
         flash("Метрика обновлена.", "success")
         return redirect(url_for('views.admin_metrics'))
+    excluded_positions = [excl.position for excl in metric.exclusions if excl.position]
+    excluded_employees = [excl.employee for excl in metric.exclusions if excl.employee]
 
     breadcrumbs = [("Главная", url_for('views.index')), ("Редактировать метрику", "")]
     return render_with_breadcrumbs('edit_metric.html', breadcrumbs,
                                    metric=metric,
                                    categories=categories,
-                                   departments=departments)
+                                   departments=departments,
+                                   all_positions=Position.query.all(),
+                                   all_employees=Employee.query.filter_by(is_active=True).all(),
+                                   excluded_positions=excluded_positions,
+                                   excluded_employees=excluded_employees)
 
 
 @views.route('/admin/metrics/delete/<int:metric_id>', methods=['POST'])
@@ -790,10 +827,20 @@ def evaluate(emp_id):
             flash("Вы можете оценить только себя.", "error")
             return redirect(url_for('views.dashboard'))
 
+    emp_position_id = employee.position_id
+    excluded_metric_ids = db.session.query(MetricExclusion.metric_id).filter(
+        db.or_(
+            MetricExclusion.employee_id == emp_id,
+            MetricExclusion.position_id == emp_position_id
+        )
+    ).subquery()
+
     metrics = PerformanceMetric.query.filter(
         (PerformanceMetric.department_id == employee.department_id) |
         (PerformanceMetric.department_id.is_(None))
-    ).filter_by(is_active=True).all()
+    ).filter_by(is_active=True)\
+    .filter(~PerformanceMetric.id.in_(excluded_metric_ids))\
+    .all()
 
     if request.method == 'POST':
         for metric in metrics:

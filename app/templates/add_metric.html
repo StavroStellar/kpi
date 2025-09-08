@@ -46,6 +46,29 @@
             </select>
         </div>
     </div>
+
+    <div class="form-group">
+        <label>Исключить по должности</label>
+        <select name="exclude_position_id" multiple size="5">
+            <option value="">-- Выберите должности для исключения --</option>
+            {% for pos in all_positions %}
+            <option value="{{ pos.id }}">{{ pos.title }} ({{ pos.department.name }})</option>
+            {% endfor %}
+        </select>
+        <small class="text-muted">Удерживайте Ctrl (Cmd на Mac) для выбора нескольких.</small>
+    </div>
+
+    <div class="form-group">
+        <label>Исключить по сотруднику</label>
+        <select name="exclude_employee_id" multiple size="5">
+            <option value="">-- Выберите сотрудников для исключения --</option>
+            {% for emp in all_employees %}
+            <option value="{{ emp.id }}">{{ emp.full_name }} ({{ emp.position.title if emp.position else 'Без должности' }})</option>
+            {% endfor %}
+        </select>
+        <small class="text-muted">Удерживайте Ctrl для выбора нескольких.</small>
+    </div>
+
     <button type="submit" class="btn">Сохранить метрику</button>
 </form>
 

@@ -1115,3 +1115,102 @@ def delete_message(message_id):
     db.session.commit()
     flash("Сообщение удалено.", "success")
     return redirect(url_for('views.admin_messages'))
+    
+    
+# --- Управление должностями ---
+@views.route('/admin/positions')
+@login_required
+@admin_or_manager_required
+def admin_positions():
+    if current_user.role.name == 'manager':
+        positions_list = Position.query.filter_by(department_id=current_user.department_id).all()
+    else:
+        positions_list = Position.query.all()
+    breadcrumbs = [("Главная", url_for('views.index')), ("Управление должностями", "")]
+    return render_with_breadcrumbs('admin_positions.html', breadcrumbs, positions=positions_list)
+
+
+@views.route('/admin/positions/add', methods=['GET', 'POST'])
+@login_required
+@admin_or_manager_required
+def add_position():
+    departments = [current_user.department] if current_user.role.name == 'manager' else Department.query.all()
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        department_id = request.form.get('department_id')
+        description = request.form.get('description')
+
+        if not all([title, department_id]):
+            flash("Заполните название и подразделение.", "error")
+        else:
+            if current_user.role.name == 'manager' and int(department_id) != current_user.department_id:
+                flash("Вы можете добавлять должности только в своё подразделение.", "error")
+                return redirect(url_for('views.add_position'))
+
+            position = Position(
+                title=title,
+                department_id=int(department_id),
+                description=description
+            )
+            db.session.add(position)
+            db.session.commit()
+            flash(f"Должность '{title}' добавлена.", "success")
+            return redirect(url_for('views.admin_positions'))
+
+    breadcrumbs = [("Главная", url_for('views.index')), ("Добавить должность", "")]
+    return render_with_breadcrumbs('add_position.html', breadcrumbs, departments=departments)
+
+
+@views.route('/admin/positions/edit/<int:pos_id>', methods=['GET', 'POST'])
+@login_required
+@admin_or_manager_required
+def edit_position(pos_id):
+    position = Position.query.get_or_404(pos_id)
+
+    if current_user.role.name == 'manager' and position.department_id != current_user.department_id:
+        abort(403)
+
+    departments = [current_user.department] if current_user.role.name == 'manager' else Department.query.all()
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        department_id = request.form.get('department_id')
+        description = request.form.get('description')
+
+        if not all([title, department_id]):
+            flash("Заполните название и подразделение.", "error")
+        else:
+            if current_user.role.name == 'manager' and int(department_id) != current_user.department_id:
+                flash("Вы можете редактировать должности только в своём подразделении.", "error")
+                return redirect(url_for('views.edit_position', pos_id=pos_id))
+
+            position.title = title
+            position.department_id = int(department_id)
+            position.description = description
+            db.session.commit()
+            flash("Должность обновлена.", "success")
+            return redirect(url_for('views.admin_positions'))
+
+    breadcrumbs = [("Главная", url_for('views.index')), ("Редактировать должность", "")]
+    return render_with_breadcrumbs('edit_position.html', breadcrumbs, position=position, departments=departments)
+
+
+@views.route('/admin/positions/delete/<int:pos_id>', methods=['POST'])
+@login_required
+@admin_or_manager_required
+def delete_position(pos_id):
+    position = Position.query.get_or_404(pos_id)
+
+    if current_user.role.name == 'manager' and position.department_id != current_user.department_id:
+        abort(403)
+
+    emp_count = Employee.query.filter_by(position_id=pos_id).count()
+    if emp_count > 0:
+        flash(f"Нельзя удалить должность '{position.title}', так как на ней числится {emp_count} сотрудников.", "error")
+    else:
+        db.session.delete(position)
+        db.session.commit()
+        flash("Должность удалена.", "success")
+
+    return redirect(url_for('views.admin_positions'))

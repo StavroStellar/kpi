@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Управление должностями{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>Управление должностями</h1>
+</div>
+
+<a href="{{ url_for('views.add_position') }}" class="btn">Добавить должность</a>
+
+{% if positions %}
+<table>
+    <thead>
+        <tr>
+            <th>Название должности</th>
+            <th>Подразделение</th>
+            <th>Описание</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for pos in positions %}
+        <tr>
+            <td>{{ pos.title }}</td>
+            <td>{{ pos.department.name }}</td>
+            <td>{{ pos.description or '–' }}</td>
+            <td>
+                <a href="{{ url_for('views.edit_position', pos_id=pos.id) }}" class="btn btn-small">Ред.</a>
+                <form method="POST" action="{{ url_for('views.delete_position', pos_id=pos.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-small btn-danger confirm-delete">Удалить</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+    <div class="alert alert-info">
+        Должности не найдены.
+    </div>
+{% endif %}
+
+<a href="{{ url_for('views.index') }}" class="btn btn-outline">На главную</a>
+{% endblock %}

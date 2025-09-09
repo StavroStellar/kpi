@@ -122,12 +122,15 @@
             <a href="{{ url_for('views.admin_news') }}" class="btn btn-outline">Новости</a>
             
             {% if user.role.name == 'admin' %}
+                <a href="{{ url_for('views.admin_employees') }}" class="btn btn-outline">Сотрудники</a>
                 <a href="{{ url_for('views.admin_faq') }}" class="btn btn-outline">FAQ</a>  
-                <a href="{{ url_for('views.admin_messages') }}" class="btn btn-outline">Сообщения</a>     
+                <a href="{{ url_for('views.admin_messages') }}" class="btn btn-outline">Сообщения</a> 
+                <a href="{{ url_for('views.admin_positions') }}" class="btn btn-outline">Должности</a>
             {% endif %}
 
             {% if user.role.name == 'manager' %}
                 <a href="{{ url_for('views.admin_employees') }}" class="btn btn-outline">Сотрудники</a>
+                <a href="{{ url_for('views.admin_positions') }}" class="btn btn-outline">Должности</a>
                 <a href="{{ url_for('views.admin_metrics') }}" class="btn btn-outline">Метрики</a>
                 <a href="{{ url_for('views.admin_cycles') }}" class="btn btn-outline">Циклы</a>
                 <a href="{{ url_for('views.export_import') }}" class="btn">Импорт/Экспорт</a>

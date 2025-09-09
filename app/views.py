@@ -576,6 +576,23 @@ def add_employee():
         elif Employee.query.filter_by(email=email).first():
             flash("Сотрудник с таким email уже существует.", "error")
         else:
+            import re
+            email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_regex, email):
+                flash("Некорректный формат email-адреса.", "error")
+                return redirect(url_for('views.add_employee'))
+
+            if ip_address:
+                ip_regex = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+                if not re.match(ip_regex, ip_address):
+                    flash("Некорректный формат IP-адреса. Используйте формат: 192.168.1.1", "error")
+                    return redirect(url_for('views.add_employee'))
+
+            target_role = Role.query.get(int(role_id))
+            if target_role.name == 'admin' and current_user.role.name != 'admin':
+                flash("Только администратор может создавать других администраторов.", "error")
+                return redirect(url_for('views.add_employee'))
+
             from werkzeug.security import generate_password_hash
             employee = Employee(
                 full_name=full_name,
@@ -603,28 +620,58 @@ def add_employee():
 @login_required
 @admin_or_manager_required
 def edit_employee(emp_id):
+    if emp_id == current_user.id:
+        flash("Вы не можете редактировать свой собственный профиль через этот интерфейс.", "error")
+        return redirect(url_for('views.admin_employees'))
+
     employee = Employee.query.get_or_404(emp_id)
     departments = Department.query.all()
     roles = Role.query.all()
     positions = Position.query.filter_by(department_id=employee.department_id).all()
 
     if request.method == 'POST':
-        employee.full_name = request.form.get('full_name')
-        employee.email = request.form.get('email')
-        employee.department_id = int(request.form.get('department_id'))
-        employee.position_id = int(request.form.get('position_id'))
-        employee.role_id = int(request.form.get('role_id'))
-        employee.ip_address = request.form.get('ip_address')
+        full_name = request.form.get('full_name')
+        email = request.form.get('email')
+        department_id = request.form.get('department_id')
+        position_id = request.form.get('position_id')
+        role_id = request.form.get('role_id')
+        ip_address = request.form.get('ip_address')
 
-        # Смена пароля (опционально)
-        password = request.form.get('password')
-        if password:
-            from werkzeug.security import generate_password_hash
-            employee.password_hash = generate_password_hash(password)
+        if not all([full_name, email, department_id, position_id, role_id]):
+            flash("Заполните все обязательные поля.", "error")
+        else:
+            import re
+            email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_regex, email):
+                flash("Некорректный формат email-адреса.", "error")
+                return redirect(url_for('views.edit_employee', emp_id=emp_id))
 
-        db.session.commit()
-        flash("Данные сотрудника обновлены.", "success")
-        return redirect(url_for('views.admin_employees'))
+            if ip_address:
+                ip_regex = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+                if not re.match(ip_regex, ip_address):
+                    flash("Некорректный формат IP-адреса. Используйте формат: 192.168.1.1", "error")
+                    return redirect(url_for('views.edit_employee', emp_id=emp_id))
+
+            target_role = Role.query.get(int(role_id))
+            if target_role.name == 'admin' and current_user.role.name != 'admin':
+                flash("Только администратор может назначать роль администратора.", "error")
+                return redirect(url_for('views.edit_employee', emp_id=emp_id))
+
+            employee.full_name = full_name
+            employee.email = email
+            employee.department_id = int(department_id)
+            employee.position_id = int(position_id)
+            employee.role_id = int(role_id)
+            employee.ip_address = ip_address
+
+            password = request.form.get('password')
+            if password:
+                from werkzeug.security import generate_password_hash
+                employee.password_hash = generate_password_hash(password)
+
+            db.session.commit()
+            flash("Данные сотрудника обновлены.", "success")
+            return redirect(url_for('views.admin_employees'))
 
     # Обновляем должности при смене подразделения (в шаблоне — JS)
     positions = Position.query.filter_by(department_id=employee.department_id).all()
@@ -640,6 +687,10 @@ def edit_employee(emp_id):
 @login_required
 @admin_or_manager_required
 def delete_employee(emp_id):
+    if emp_id == current_user.id:
+        flash("Вы не можете удалить самого себя.", "error")
+        return redirect(url_for('views.admin_employees'))
+
     employee = Employee.query.get_or_404(emp_id)
     if employee.role.name == 'admin' and current_user.role.name != 'admin':
         flash("Вы не можете удалить другого администратора.", "error")
@@ -910,7 +961,7 @@ def import_data():
         return redirect(url_for('views.export_import'))
 
     # Проверка расширения
-    if not file.filename.lower().endswith(('.xlsx', '.xls')):
+    if not file.filename.lower().endswith(('.xlsx', '.xls', '.csv')):
         flash("Поддерживаются только .xlsx и .xls файлы.", "error")
         return redirect(url_for('views.export_import'))
 
@@ -922,66 +973,113 @@ def import_data():
     try:
         # Сохраним файл временно
         import tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.tmp') as tmp:
             file.save(tmp.name)
             tmp_path = tmp.name
-
-        from openpyxl import load_workbook
-        workbook = load_workbook(tmp_path)
-        sheet = workbook.active
-
-        if sheet.max_row < 2:
-            flash("Файл пуст или содержит только заголовок.", "error")
-            return redirect(url_for('views.export_import'))
-
+    
         imported = 0
-        for row in sheet.iter_rows(min_row=2, values_only=True):
-            if not row[0]:
-                continue
-
-            emp_email, metric_name, score, comment = row[0], row[1], row[2], row[3] or ''
-
-            employee = Employee.query.filter_by(email=emp_email).first()
-            metric = PerformanceMetric.query.filter_by(name=metric_name).first()
-
-            if not employee:
-                flash(f"Не найден сотрудник с email: {emp_email}", "warning")
-                continue
-            if not metric:
-                flash(f"Не найдена метрика: {metric_name}", "warning")
-                continue
-
-            # Проверка score
-            try:
-                score = float(score)
-            except (TypeError, ValueError):
-                flash(f"Некорректный балл для {emp_email}: {score}", "error")
-                continue
-
-            # Обновляем или создаём оценку
-            existing = EmployeeMetric.query.filter_by(
-                employee_id=employee.id,
-                metric_id=metric.id,
-                cycle_id=active_cycle.id
-            ).first()
-
-            if existing:
-                existing.score = score
-                existing.comment = str(comment)
-            else:
-                eval_metric = EmployeeMetric(
+    
+        # --- НОВЫЙ БЛОК: Определение типа файла и чтение ---
+        if file.filename.lower().endswith('.csv'):
+            import csv
+            with open(tmp_path, newline='', encoding='utf-8') as csvfile:
+                reader = csv.reader(csvfile)
+                rows = list(reader)
+                if len(rows) < 2:
+                    flash("Файл пуст или содержит только заголовок.", "error")
+                    return redirect(url_for('views.export_import'))
+                # Пропускаем первую строку (заголовок)
+                for row in rows[1:]:
+                    if len(row) < 3:
+                        continue
+                    emp_email, metric_name, score = row[0], row[1], row[2]
+                    comment = row[3] if len(row) > 3 else ''
+                    # ... остальная логика обработки строки (как в Excel) ...
+                    employee = Employee.query.filter_by(email=emp_email).first()
+                    metric = PerformanceMetric.query.filter_by(name=metric_name).first()
+                    if not employee:
+                        flash(f"Не найден сотрудник с email: {emp_email}", "warning")
+                        continue
+                    if not metric:
+                        flash(f"Не найдена метрика: {metric_name}", "warning")
+                        continue
+                    try:
+                        score = float(score)
+                    except (TypeError, ValueError):
+                        flash(f"Некорректный балл для {emp_email}: {score}", "error")
+                        continue
+                    existing = EmployeeMetric.query.filter_by(
+                        employee_id=employee.id,
+                        metric_id=metric.id,
+                        cycle_id=active_cycle.id
+                    ).first()
+                    if existing:
+                        existing.score = score
+                        existing.comment = str(comment)
+                    else:
+                        eval_metric = EmployeeMetric(
+                            employee_id=employee.id,
+                            metric_id=metric.id,
+                            cycle_id=active_cycle.id,
+                            score=score,
+                            comment=str(comment),
+                            evaluator_id=current_user.id
+                        )
+                        db.session.add(eval_metric)
+                    imported += 1
+    
+        else:  # Это Excel
+            from openpyxl import load_workbook
+            workbook = load_workbook(tmp_path)
+            sheet = workbook.active
+            if sheet.max_row < 2:
+                flash("Файл пуст или содержит только заголовок.", "error")
+                return redirect(url_for('views.export_import'))
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                if not row[0]:
+                    continue
+                emp_email, metric_name, score, comment = row[0], row[1], row[2], row[3] or ''
+                # ... та же логика обработки строки, что и выше ...
+                employee = Employee.query.filter_by(email=emp_email).first()
+                metric = PerformanceMetric.query.filter_by(name=metric_name).first()
+                if not employee:
+                    flash(f"Не найден сотрудник с email: {emp_email}", "warning")
+                    continue
+                if not metric:
+                    flash(f"Не найдена метрика: {metric_name}", "warning")
+                    continue
+                try:
+                    score = float(score)
+                except (TypeError, ValueError):
+                    flash(f"Некорректный балл для {emp_email}: {score}", "error")
+                    continue
+                existing = EmployeeMetric.query.filter_by(
                     employee_id=employee.id,
                     metric_id=metric.id,
-                    cycle_id=active_cycle.id,
-                    score=score,
-                    comment=str(comment),
-                    evaluator_id=current_user.id
-                )
-                db.session.add(eval_metric)
-            imported += 1
-
+                    cycle_id=active_cycle.id
+                ).first()
+                if existing:
+                    existing.score = score
+                    existing.comment = str(comment)
+                else:
+                    eval_metric = EmployeeMetric(
+                        employee_id=employee.id,
+                        metric_id=metric.id,
+                        cycle_id=active_cycle.id,
+                        score=score,
+                        comment=str(comment),
+                        evaluator_id=current_user.id
+                    )
+                    db.session.add(eval_metric)
+                imported += 1
+    
         db.session.commit()
         flash(f"Успешно импортировано {imported} оценок.", "success")
+    
+    except Exception as e:
+        db.session.rollback()
+        print("Ошибка при импорте:", str(e))
+        flash(f"Ошибка при обработке файла: {str(e)}", "error")
 
     except Exception as e:
         db.session.rollback()

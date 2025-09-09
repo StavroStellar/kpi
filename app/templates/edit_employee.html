@@ -61,6 +61,12 @@
             <label>IP-адрес</label>
             <input type="text" name="ip_address" value="{{ employee.ip_address or '' }}">
         </div>
+        
+    </div>
+    <div class="form-group">
+        <label>Сбросить пароль (оставьте пустым, чтобы не менять)</label>
+        <input type="password" name="password" placeholder="Новый пароль">
+        <small class="text-muted">Если вы хотите сбросить пароль сотрудника, введите новый пароль здесь.</small>
     </div>
 
     <button type="submit" class="btn">Сохранить изменения</button>

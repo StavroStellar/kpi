@@ -38,22 +38,20 @@
         </div>
     </div>
 
-    <div class="form-row">
-        <div class="form-group">
-            <label>Роль в системе</label>
-            <select name="role_id" required>
-                {% for role in roles %}
-                <option value="{{ role.id }}">{{ 
-                    'Администратор' if role.name == 'admin' else
-                    'Менеджер' if role.name == 'manager' else 'Сотрудник' 
-                }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>IP-адрес рабочего места (опционально)</label>
-            <input type="text" name="ip_address" placeholder="192.168.1.100">
-        </div>
+    <div class="form-group">
+        <label>Роль в системе</label>
+        <select name="role_id" required>
+            {% for role in roles %}
+                {% if role.name != 'admin' or current_user.role.name == 'admin' %}
+                    <option value="{{ role.id }}">
+                        {{ 
+                            'Администратор' if role.name == 'admin' else
+                            'Менеджер' if role.name == 'manager' else 'Сотрудник' 
+                        }}
+                    </option>
+                {% endif %}
+            {% endfor %}
+        </select>
     </div>
 
     <div class="form-group">

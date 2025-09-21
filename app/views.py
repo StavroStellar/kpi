@@ -554,6 +554,10 @@ def add_metric():
                            all_employees=all_employees)
 
 # --- Управление сотрудниками ---
+import os
+from werkzeug.utils import secure_filename
+from flask import current_app
+
 @views.route('/admin/employees/add', methods=['GET', 'POST'])
 @login_required
 @admin_or_manager_required
@@ -570,44 +574,66 @@ def add_employee():
         role_id = request.form.get('role_id')
         ip_address = request.form.get('ip_address')
         password = request.form.get('password')
+        photo_file = request.files.get('photo')
 
         if not all([full_name, email, department_id, position_id, role_id, password]):
             flash("Заполните все обязательные поля.", "error")
-        elif Employee.query.filter_by(email=email).first():
+            return redirect(url_for('views.add_employee'))
+
+        if Employee.query.filter_by(email=email).first():
             flash("Сотрудник с таким email уже существует.", "error")
-        else:
-            import re
-            email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-            if not re.match(email_regex, email):
-                flash("Некорректный формат email-адреса.", "error")
+            return redirect(url_for('views.add_employee'))
+
+        import re
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, email):
+            flash("Некорректный формат email-адреса.", "error")
+            return redirect(url_for('views.add_employee'))
+
+        if ip_address:
+            ip_regex = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+            if not re.match(ip_regex, ip_address):
+                flash("Некорректный формат IP-адреса. Используйте формат: 192.168.1.1", "error")
                 return redirect(url_for('views.add_employee'))
 
-            if ip_address:
-                ip_regex = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
-                if not re.match(ip_regex, ip_address):
-                    flash("Некорректный формат IP-адреса. Используйте формат: 192.168.1.1", "error")
-                    return redirect(url_for('views.add_employee'))
+        target_role = Role.query.get(int(role_id))
+        if target_role.name == 'admin' and current_user.role.name != 'admin':
+            flash("Только администратор может создавать других администраторов.", "error")
+            return redirect(url_for('views.add_employee'))
 
-            target_role = Role.query.get(int(role_id))
-            if target_role.name == 'admin' and current_user.role.name != 'admin':
-                flash("Только администратор может создавать других администраторов.", "error")
+        photo_path = None
+        if photo_file and photo_file.filename != '':
+            ext = photo_file.filename.rsplit('.', 1)[-1].lower()
+            if ext not in ['jpg', 'jpeg', 'png']:
+                flash("Разрешены только изображения: JPG, PNG.", "error")
                 return redirect(url_for('views.add_employee'))
 
-            from werkzeug.security import generate_password_hash
-            employee = Employee(
-                full_name=full_name,
-                email=email,
-                password_hash=generate_password_hash(password),
-                department_id=int(department_id),
-                position_id=int(position_id),
-                role_id=int(role_id),
-                ip_address=ip_address,
-                is_active=True
-            )
-            db.session.add(employee)
-            db.session.commit()
-            flash(f"Сотрудник {full_name} добавлен.", "success")
-            return redirect(url_for('views.admin_employees'))
+            filename = secure_filename(f"emp_{email}.{ext}")
+            upload_folder = current_app.config.get('UPLOAD_FOLDER')
+            if not upload_folder:
+                upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'photos')
+            os.makedirs(upload_folder, exist_ok=True)
+            os.makedirs(upload_folder, exist_ok=True)
+            filepath = os.path.join(upload_folder, filename)
+            photo_file.save(filepath)
+            photo_path = f"uploads/photos/{filename}"
+
+        from werkzeug.security import generate_password_hash
+        employee = Employee(
+            full_name=full_name,
+            email=email,
+            password_hash=generate_password_hash(password),
+            department_id=int(department_id),
+            position_id=int(position_id),
+            role_id=int(role_id),
+            ip_address=ip_address,
+            is_active=True,
+            photo=photo_path
+        )
+        db.session.add(employee)
+        db.session.commit()
+        flash(f"Сотрудник {full_name} добавлен.", "success")
+        return redirect(url_for('views.admin_employees'))
 
     breadcrumbs = [("Главная", url_for('views.index')), ("Добавить сотрудника", "")]
     return render_with_breadcrumbs('add_employee.html', breadcrumbs,
@@ -615,6 +641,10 @@ def add_employee():
                                    roles=roles,
                                    positions=positions)
 
+
+import os
+from werkzeug.utils import secure_filename
+from flask import current_app
 
 @views.route('/admin/employees/edit/<int:emp_id>', methods=['GET', 'POST'])
 @login_required
@@ -636,6 +666,7 @@ def edit_employee(emp_id):
         position_id = request.form.get('position_id')
         role_id = request.form.get('role_id')
         ip_address = request.form.get('ip_address')
+        photo_file = request.files.get('photo')  # Новое фото
 
         if not all([full_name, email, department_id, position_id, role_id]):
             flash("Заполните все обязательные поля.", "error")
@@ -657,6 +688,30 @@ def edit_employee(emp_id):
                 flash("Только администратор может назначать роль администратора.", "error")
                 return redirect(url_for('views.edit_employee', emp_id=emp_id))
 
+            # Проверка уникальности email (кроме текущего сотрудника)
+            existing = Employee.query.filter(Employee.email == email, Employee.id != emp_id).first()
+            if existing:
+                flash("Сотрудник с таким email уже существует.", "error")
+                return redirect(url_for('views.edit_employee', emp_id=emp_id))
+
+            # === Обработка фото ===
+            if photo_file and photo_file.filename != '':
+                ext = photo_file.filename.rsplit('.', 1)[-1].lower()
+                if ext not in ['jpg', 'jpeg', 'png']:
+                    flash("Разрешены только изображения: JPG, PNG.", "error")
+                    return redirect(url_for('views.edit_employee', emp_id=emp_id))
+
+                # Генерация безопасного имени файла
+                filename = secure_filename(f"emp_{email}.{ext}")
+                upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'photos')
+                os.makedirs(upload_folder, exist_ok=True)
+                filepath = os.path.join(upload_folder, filename)
+
+                # Сохраняем новое фото
+                photo_file.save(filepath)
+                employee.photo = f"uploads/photos/{filename}"  # обновляем путь к фото
+
+            # === Обновление остальных данных ===
             employee.full_name = full_name
             employee.email = email
             employee.department_id = int(department_id)
@@ -673,7 +728,7 @@ def edit_employee(emp_id):
             flash("Данные сотрудника обновлены.", "success")
             return redirect(url_for('views.admin_employees'))
 
-    # Обновляем должности при смене подразделения (в шаблоне — JS)
+    # Обновляем список должностей для отображения в шаблоне
     positions = Position.query.filter_by(department_id=employee.department_id).all()
     breadcrumbs = [("Главная", url_for('views.index')), ("Редактировать сотрудника", "")]
     return render_with_breadcrumbs('edit_employee.html', breadcrumbs,

@@ -38,7 +38,9 @@ class Employee(db.Model, UserMixin):
     ip_address = db.Column(db.String(45))
     hire_date = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
+    photo = db.Column(db.String(255), nullable=True)
 
+    # Связи
     role = db.relationship('Role')
     department = db.relationship('Department')
     position = db.relationship('Position')

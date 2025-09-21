@@ -34,6 +34,7 @@
                     <th>Подразделение</th>
                     <th>Роль в системе</th>
                     <th>Дата приёма</th>
+                    <th>Фото</th>
                 </tr>
             </thead>
             <tbody>
@@ -54,6 +55,17 @@
                         </span>
                     </td>
                     <td>{{ emp.hire_date.strftime('%d.%m.%Y') if emp.hire_date else '–' }}</td>
+                    <td>
+                        {% if emp.photo %}
+                            <img src="{{ url_for('static', filename=emp.photo) }}" 
+                                alt="Фото" 
+                                style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='img/avatar.png') }}" 
+                                alt="Фото" 
+                                style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover;">
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

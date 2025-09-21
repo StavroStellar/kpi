@@ -2,6 +2,7 @@ from datetime import datetime
 import io
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, send_file
 from flask_login import login_required, current_user
+from sqlalchemy import func
 from app.models import Department, MetricExclusion, db
 from app.models import (
     ContactMessage, Employee, EvaluationCycle, MetricCategory,
@@ -72,6 +73,52 @@ def contact():
             return redirect(url_for('views.contact'))
     breadcrumbs = [("Главная", url_for('views.index')), ("Контакты", url_for('views.contact'))]
     return render_with_breadcrumbs('contact.html', breadcrumbs)
+
+@views.route('/employee/<int:emp_id>/performance')
+@login_required
+def employee_performance(emp_id):
+    from sqlalchemy import func
+
+    # Получаем сотрудника
+    employee = Employee.query.get_or_404(emp_id)
+
+    # Проверка доступа
+    if current_user.role.name == 'manager':
+        if employee.department_id != current_user.department_id:
+            abort(403)
+    elif current_user.role.name != 'admin' and current_user.id != emp_id:
+        abort(403)
+
+    # Все циклы (отсортированы по дате)
+    cycles = EvaluationCycle.query.order_by(EvaluationCycle.start_date).all()
+
+    cycle_names = []
+    avg_scores = []
+
+    for cycle in cycles:
+        score = db.session.query(func.avg(EmployeeMetric.score)).filter(
+            EmployeeMetric.employee_id == emp_id,
+            EmployeeMetric.cycle_id == cycle.id
+        ).scalar()
+
+        if score is not None:
+            # Безопасное имя цикла
+            safe_name = f"{cycle.name} ({cycle.start_date.strftime('%m.%Y')})"
+            safe_name = safe_name.replace('"', "'").strip()
+            cycle_names.append(safe_name)
+            avg_scores.append(round(float(score), 2))
+
+    # Хлебные крошки
+    breadcrumbs = [
+        ("Главная", url_for('views.index')),
+        ("Сотрудники", url_for('views.employees')),
+        (f"Динамика {employee.full_name}", "")
+    ]
+
+    return render_with_breadcrumbs('employee_performance.html', breadcrumbs,
+                                   employee=employee,
+                                   cycle_names=cycle_names,
+                                   avg_scores=avg_scores)
 
 @views.route('/admin/employees')
 @login_required

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Динамика KPI — {{ employee.full_name }}{% endblock %}
+
+{% block content %}
+<h2>Динамика оценок сотрудника: {{ employee.full_name }}</h2>
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+<!-- Блок с графиком -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5>Изменение среднего балла по циклам</h5>
+        {% if cycle_names and avg_scores and cycle_names|length == avg_scores|length %}
+            <canvas id="performanceChart" height="100"></canvas>
+
+<script>
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    const performanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ cycle_names | tojson }},
+            datasets: [{
+                label: 'Средний балл',
+                data: {{ avg_scores | tojson }},
+                backgroundColor: 'rgba(78, 115, 223, 0.2)',
+                borderColor: '#4e73df',
+                borderWidth: 3,
+                pointBackgroundColor: '#4e73df',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: '#4e73df',
+                fill: true,
+                tension: 0.3  // плавные линии
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Средний балл: ${context.parsed.y.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    max: 12,  // предполагаем максимум KPI — 12
+                    title: {
+                        display: true,
+                        text: 'Балл'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Оценочные циклы'
+                    }
+                }
+            }
+        }
+    });
+</script>
+        {% else %}
+            <p class="text-muted">Нет данных об оценках за циклы.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Таблица с детализацией -->
+{% if cycle_names and cycle_names|length > 0 %}
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Цикл</th>
+                <th>Средний балл</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in range(cycle_names|length) %}
+            <tr>
+                <td>{{ cycle_names[i] }}</td>
+                <td><strong>{{ '%.2f'|format(avg_scores[i]) }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Кнопки навигации -->
+<div class="mt-3">
+    <a href="{{ url_for('views.dashboard') }}" class="btn btn-outline">← В личный кабинет</a>
+    <a href="{{ url_for('views.employees') }}" class="btn btn-outline">К списку сотрудников</a>
+</div>
+
+{% endblock %}
+
+{% block styles %}
+
+{% endblock %}

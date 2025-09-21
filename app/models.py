@@ -1,7 +1,6 @@
 from datetime import datetime
-from app.extensions import db
-from datetime import datetime
 from flask_login import UserMixin
+from app.extensions import db
 
 # Роль пользователя
 class Role(db.Model):
@@ -44,6 +43,13 @@ class Employee(db.Model, UserMixin):
     department = db.relationship('Department')
     position = db.relationship('Position')
 
+    # Обратные связи (не влияют на внешние ключи)
+    metrics_received = db.relationship('EmployeeMetric', foreign_keys='EmployeeMetric.employee_id', backref='employee')
+    received_feedback = db.relationship('Feedback', foreign_keys='Feedback.employee_id', backref='employee')
+    sender_feedbacks = db.relationship('Feedback', foreign_keys='Feedback.sender_id', backref='sender')
+    faqs_created = db.relationship('FAQ', backref='author')
+    news_created = db.relationship('News', backref='author')
+
 # Цикл оценки
 class EvaluationCycle(db.Model):
     __tablename__ = 'evaluation_cycles'
@@ -53,6 +59,8 @@ class EvaluationCycle(db.Model):
     end_date = db.Column(db.DateTime, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     description = db.Column(db.Text)
+    evaluations = db.relationship('EmployeeMetric', backref='cycle', cascade="all, delete", lazy='dynamic')
+    feedbacks = db.relationship('Feedback', backref='cycle', cascade="all, delete", lazy='dynamic')
 
 # Категория метрики
 class MetricCategory(db.Model):
@@ -77,6 +85,7 @@ class PerformanceMetric(db.Model):
     weight = db.Column(db.Float, default=1.0)
 
     department = db.relationship('Department', backref='custom_metrics')
+    exclusions = db.relationship('MetricExclusion', backref='metric', cascade="all, delete-orphan")
 
 # Оценка сотрудника по метрике
 class EmployeeMetric(db.Model):
@@ -90,9 +99,7 @@ class EmployeeMetric(db.Model):
     evaluated_at = db.Column(db.DateTime, default=datetime.utcnow)
     evaluator_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
 
-    employee = db.relationship('Employee', foreign_keys=[employee_id], backref='metrics_received')
     metric = db.relationship('PerformanceMetric')
-    cycle = db.relationship('EvaluationCycle', backref='evaluations')
     evaluator = db.relationship('Employee', foreign_keys=[evaluator_id])
 
 # Тип обратной связи
@@ -113,9 +120,6 @@ class Feedback(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_anonymous = db.Column(db.Boolean, default=False)
 
-    employee = db.relationship('Employee', foreign_keys=[employee_id], backref='received_feedback')
-    sender = db.relationship('Employee', foreign_keys=[sender_id])
-    cycle = db.relationship('EvaluationCycle', backref='feedbacks')
     feedback_type = db.relationship('FeedbackType')
 
 # Сообщение из формы обратной связи (публичное)
@@ -128,7 +132,6 @@ class ContactMessage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     read = db.Column(db.Boolean, default=False)
 
-# --- Контент для сайта (редактируется админом/менеджером) ---
 class FAQ(db.Model):
     __tablename__ = 'faqs'
     id = db.Column(db.Integer, primary_key=True)
@@ -139,9 +142,6 @@ class FAQ(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     author_id = db.Column(db.Integer, db.ForeignKey('employees.id'))
-    
-    author = db.relationship('Employee', backref='faqs_created')
-
 
 class News(db.Model):
     __tablename__ = 'news'
@@ -155,23 +155,21 @@ class News(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('employees.id'))
     image_url = db.Column(db.String(500))
 
-    author = db.relationship('Employee', backref='news_created')
 
 class MetricExclusion(db.Model):
     __tablename__ = 'metric_exclusions'
-
     id = db.Column(db.Integer, primary_key=True)
     metric_id = db.Column(db.Integer, db.ForeignKey('performance_metrics.id'), nullable=False)
     employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=True)
     position_id = db.Column(db.Integer, db.ForeignKey('positions.id'), nullable=True)
-
-    metric = db.relationship('PerformanceMetric', backref=db.backref('exclusions', lazy='dynamic', cascade="all, delete-orphan"))
     employee = db.relationship('Employee')
     position = db.relationship('Position')
 
     __table_args__ = (
-        db.CheckConstraint('(employee_id IS NOT NULL AND position_id IS NULL) OR (employee_id IS NULL AND position_id IS NOT NULL)',
-                           name='check_exactly_one_target'),
+        db.CheckConstraint(
+            '(employee_id IS NOT NULL AND position_id IS NULL) OR (employee_id IS NULL AND position_id IS NOT NULL)',
+            name='check_exactly_one_target'
+        ),
     )
 
     def __repr__(self):

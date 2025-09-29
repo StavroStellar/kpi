@@ -121,7 +121,7 @@ class Feedback(db.Model):
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_anonymous = db.Column(db.Boolean, default=False)
-
+    is_archived = db.Column(db.Boolean, default=False) 
     feedback_type = db.relationship('FeedbackType')
 
 # Сообщение из формы обратной связи (публичное)

@@ -477,18 +477,50 @@ def delete_news(news_id):
 @login_required
 def dashboard():
     user = current_user
+
+    # Оценки за текущий активный цикл
     received_evals = EmployeeMetric.query.filter_by(employee_id=user.id)\
         .join(EvaluationCycle).filter(EvaluationCycle.is_active == True).all()
+
     given_evals = EmployeeMetric.query.filter_by(evaluator_id=user.id)\
         .join(EvaluationCycle).filter(EvaluationCycle.is_active == True).all()
-    feedbacks = Feedback.query.filter_by(employee_id=user.id).all()
 
-    breadcrumbs = [("Главная", url_for('views.index')), ("Личный кабинет", url_for('views.dashboard'))]
+    # Активная (не в архиве) обратная связь
+    active_feedbacks = Feedback.query.filter_by(employee_id=user.id, is_archived=False)\
+        .join(FeedbackType).add_columns(FeedbackType.name.label('type_name'))\
+        .order_by(Feedback.created_at.desc()).all()
+
+    # Архивная обратная связь
+    archived_feedbacks = Feedback.query.filter_by(employee_id=user.id, is_archived=True)\
+        .join(FeedbackType).add_columns(FeedbackType.name.label('type_name'))\
+        .order_by(Feedback.created_at.desc()).all()
+
+    breadcrumbs = [
+        ("Главная", url_for('views.index')),
+        ("Личный кабинет", url_for('views.dashboard'))
+    ]
+
     return render_with_breadcrumbs('dashboard.html', breadcrumbs,
                                    user=user,
                                    received_evals=received_evals,
                                    given_evals=given_evals,
-                                   feedbacks=feedbacks)
+                                   active_feedbacks=active_feedbacks,
+                                   archived_feedbacks=archived_feedbacks)
+
+@views.route('/feedback/archive/<int:fb_id>')
+@login_required
+def archive_feedback(fb_id):
+    feedback = Feedback.query.get_or_404(fb_id)
+    
+    # Проверяем, что пользователь — получатель
+    if feedback.employee_id != current_user.id:
+        abort(403)
+        
+    feedback.is_archived = True
+    db.session.commit()
+    
+    flash("Обратная связь перемещена в архив.", "info")
+    return redirect(url_for('views.dashboard'))
 
 @views.route('/feedback/send', methods=['GET', 'POST'])
 @login_required

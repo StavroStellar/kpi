@@ -55,17 +55,40 @@
 {% endif %}
 
 <!-- Обратная связь -->
-{% if feedbacks %}
+{% if active_feedbacks or archived_feedbacks %}
 <div class="dash-section">
     <h2>Обратная связь</h2>
-    {% for fb in feedbacks %}
+
+    <!-- Активные уведомления -->
+    {% for fb, type_name in active_feedbacks %}
     <div class="dash-feedback-item">
         <p><strong>От {{ 'анонимного пользователя' if fb.is_anonymous else fb.sender.full_name }}</strong>
-           ({{ fb.feedback_type.name }})</p>
+           ({{ type_name }})</p>
         <p>{{ fb.content }}</p>
         <small class="dash-text-muted">{{ fb.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+        <div class="mt-1">
+            <a href="{{ url_for('views.archive_feedback', fb_id=fb.id) }}" 
+               class="btn btn-sm btn-outline">Прочитать</a>
+        </div>
     </div>
     {% endfor %}
+
+    <!-- Кнопка для разворачивания архива -->
+    {% if archived_feedbacks %}
+    <details class="mt-4">
+        <summary class="dash-btn-summary">Архив (прочитанные)</summary>
+        <div class="dash-feedback-archive">
+            {% for fb, type_name in archived_feedbacks %}
+            <div class="dash-feedback-item">
+                <p><strong>От {{ 'анонимного пользователя' if fb.is_anonymous else fb.sender.full_name }}</strong>
+                   ({{ type_name }})</p>
+                <p>{{ fb.content }}</p>
+                <small class="dash-text-muted">{{ fb.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
 </div>
 {% endif %}
 
